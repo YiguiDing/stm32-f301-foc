@@ -30,6 +30,7 @@ TARGET = main
 ######################################
 # source
 ######################################
+include library/FreeRTOS.mk
 include library/StdPeriph.mk
 include src/main.mk
 # ASM sources
@@ -73,10 +74,15 @@ CPU = -mcpu=cortex-m4
 FLASH_START = 0x08000000
 # fpu
 # NONE for Cortex-M0/M0+/M3
-FPU = 
+# 对于STM32F301系列，FPU的类型是fpv4-sp-d16，表示单精度浮点运算单元。
+FPU = -mfpu=fpv4-sp-d16
 
 # float-abi
-FLOAT-ABI = 
+# FLOAT-ABI选项用于指定浮点运算的ABI（应用二进制接口）
+# soft：软件浮点运算（不使用FPU）。
+# softfp：使用FPU进行浮点运算，但函数调用时使用软件浮点ABI。
+# hard：使用FPU进行浮点运算，并且函数调用时使用硬件浮点ABI。
+FLOAT-ABI = -mfloat-abi=hard
 
 # mcu
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
@@ -91,7 +97,8 @@ C_DEFS =  \
 	-D STM32F301x8 \
 	-D USE_STDPERIPH_DRIVER \
 	-D ARM_MATH_CM4 \
-	-D __BSD_VISIBLE
+	-D __BSD_VISIBLE=1 \
+	-D __FPU_PRESENT=1
 
 # compile gcc flags
 ASM_FLAGS += $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
