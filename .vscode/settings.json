@@ -1,0 +1,24 @@
+{
+    "files.associations": {
+        "*.dbclient-js": "javascript",
+        "*.sqlbook": "sql",
+        "*.ndjson": "jsonl",
+        "timer.h": "c",
+        "task.h": "c",
+        "serial.h": "c",
+        "array": "c",
+        "string": "c",
+        "stm32f30x.h": "c",
+        "dev.h": "c",
+        "i2c.h": "c",
+        "delay.h": "c",
+        "observer_as5600.h": "c",
+        "math.h": "c",
+        "motor.h": "c",
+        "freertos.h": "c",
+        "observer_hfi.h": "c",
+        "observer_fake.h": "c",
+        "observer_i240a2.h": "c",
+        "pid_controller.h": "c"
+    }
+}

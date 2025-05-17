@@ -45,11 +45,11 @@
 
 /*-----------------------------------------------------------*/
 
-static void task2( void * parameters );
+static void serial_task( void * parameters );
 
 /*-----------------------------------------------------------*/
 
-static void task2( void * parameters )
+static void serial_task( void * parameters )
 {
     /* Unused parameters. */
     ( void ) parameters;
@@ -69,7 +69,7 @@ void main( void )
 
     ( void ) printf( "Example FreeRTOS Project\n" );
 
-    ( void ) xTaskCreateStatic( task2,
+    ( void ) xTaskCreateStatic( serial_task,
                                 "example",
                                 configMINIMAL_STACK_SIZE,
                                 NULL,

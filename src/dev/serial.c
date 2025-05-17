@@ -139,8 +139,8 @@ void serial_send(uint8_t *data, uint16_t len)
 {
     if (len > MAX_TX_BUFFER_SIZE)
         return;
-    if (data != tx_buf[0] && data != tx_buf[1]) // 确保地址是双缓冲区的地址
-        return;
+    // if (data != tx_buf[0] && data != tx_buf[1]) // 确保地址是双缓冲区的地址
+    //     return;
     // DMA1_FLAG_TC4: DMA1 Channel4 transfer complete flag.
     if (DMA1_Channel4->CCR & DMA_CCR_EN)                  // DMA开启
         while (DMA_GetFlagStatus(DMA1_FLAG_TC4) == RESET) // 阻塞，等待DMA发送完毕
@@ -152,13 +152,13 @@ void serial_send(uint8_t *data, uint16_t len)
     DMA_Cmd(DMA1_Channel4, ENABLE);             // 启用
 }
 
-__attribute__((weak)) void serial_on_receive(uint8_t *data, uint16_t len)
-{
-    serial_printf("device have received %d byte:", len);
-    for (uint16_t idx = 0; idx < len; idx++)
-        serial_printf(" %x", data[idx]);
-    serial_printf("\r\n");
-}
+// __attribute__((weak)) void serial_on_receive(uint8_t *data, uint16_t len)
+// {
+//     serial_printf("device have received %d byte:", len);
+//     for (uint16_t idx = 0; idx < len; idx++)
+//         serial_printf(" %x", data[idx]);
+//     serial_printf("\r\n");
+// }
 void serial_printf(const char *format, ...)
 {
     uint8_t *data = serial_next_tx_buffer(); // 获取发送缓冲区
