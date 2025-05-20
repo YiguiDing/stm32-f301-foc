@@ -35,6 +35,8 @@ void motor_init(Motor *motor, uint8_t pole_pairs, float power_supply, uint8_t ch
     observer_as5600_align(&motor->as5600, motor);
     observer_hfi_init(&motor->hfi);
     // ######################################################################
+    dev_set_pwm_enable(Bit_SET);
+    // ######################################################################
 }
 void motor_set_theta_omega(Motor *motor, float theta, float omega)
 {
@@ -163,8 +165,8 @@ void motor_current_observer_update(Motor *motor, float dt)
 // ########################################################
 //                        电流观测
 // ########################################################
-#define Ia_OFFSET 0.715
-#define Ib_OFFSET -0.722
+#define Ia_OFFSET 0
+#define Ib_OFFSET 0
 
     float Ia = (dev_red_adc(motor->ch_ia) - 0.5f) / 50 / 0.01f + Ia_OFFSET;  // [0,1] -> [-0.5,0.5] -> 0.01Ω 50倍 i=u/r
     float Ib = -(dev_red_adc(motor->ch_ib) - 0.5f) / 50 / 0.01f + Ib_OFFSET; // [0,1] -> [-0.5,0.5] -> 0.01Ω 50倍 i=u/r

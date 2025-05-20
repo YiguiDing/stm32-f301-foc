@@ -20,6 +20,17 @@ void pwm_init()
     };
     GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    // enable pin
+    GPIO_InitTypeDef GPIO_InitStruct_EN = {
+        .GPIO_Pin = GPIO_Pin_11,          // 13号引脚
+        .GPIO_Mode = GPIO_Mode_OUT,       // 输出模式
+        .GPIO_Speed = GPIO_Speed_Level_3, // 50MHz
+        .GPIO_OType = GPIO_OType_PP,      // 推挽输出
+        .GPIO_PuPd = GPIO_PuPd_DOWN,      // 下拉
+    };
+    GPIO_Init(GPIOA, &GPIO_InitStruct_EN); // 初始化
+    pwm_driver_enable(Bit_RESET);
+
     /*复用功能配置*/
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_6);  // [AF6(SPI2/I2S2/SPI3/I2S3/TIM1/Infrared),PA8] = TIM1_CH1
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_6);  // [AF6(SPI2/I2S2/SPI3/I2S3/TIM1/Infrared),PA9] = TIM1_CH2
@@ -114,6 +125,11 @@ void pwm_set_duty(float dutyA, float dutyB, float dutyC)
     TIM_SetCompare1(TIM1, dutyA * 1000);
     TIM_SetCompare2(TIM1, dutyB * 1000);
     TIM_SetCompare3(TIM1, dutyC * 1000);
+}
+
+void pwm_driver_enable(BitAction flag)
+{
+    GPIO_WriteBit(GPIOA, GPIO_Pin_11, flag);
 }
 
 #include "delay.h"

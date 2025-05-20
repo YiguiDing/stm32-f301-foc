@@ -12,6 +12,7 @@ extern "C"
     void pwm_init();
     void pwm_on_update(float dt);
     void pwm_set_duty(float dutyA, float dutyB, float dutyC);
+    void pwm_driver_enable(BitAction flag);
 
 #ifdef __cplusplus
 }

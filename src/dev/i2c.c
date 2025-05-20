@@ -6,18 +6,18 @@ void i2c_init()
     /* 配置GPIO */
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE); // 开启GPIO的时钟
 
-    // PB8 -> I2C1_SCL
+    // PB6 -> I2C1_SCL
     GPIO_InitTypeDef GPIO_I2C1_SCL = {
-        .GPIO_Pin = GPIO_Pin_8,           // 引脚
+        .GPIO_Pin = GPIO_Pin_6,           // 引脚
         .GPIO_Mode = GPIO_Mode_AF,        // 复用
         .GPIO_Speed = GPIO_Speed_Level_3, // 高速
         .GPIO_OType = GPIO_OType_PP,      // 推挽
         .GPIO_PuPd = GPIO_PuPd_UP,        // 上拉
     };
     GPIO_Init(GPIOB, &GPIO_I2C1_SCL);
-    // PB9 -> I2C1_SDA
+    // PB7 -> I2C1_SDA
     GPIO_InitTypeDef GPIO_I2C1_SDA = {
-        .GPIO_Pin = GPIO_Pin_9,           // 引脚
+        .GPIO_Pin = GPIO_Pin_7,           // 引脚
         .GPIO_Mode = GPIO_Mode_AF,        // 复用
         .GPIO_Speed = GPIO_Speed_Level_3, // 高速
         .GPIO_OType = GPIO_OType_OD,      // 开漏
@@ -27,8 +27,10 @@ void i2c_init()
 
     /*复用功能配置*/
     // [STM32F301x6 STM32F301x8 DS9895 Rev 8] [page：46/141] [Table 15. Alternate functions for Port B]
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_4); // [AF4(I2C1),PB8] = I2C1_SCL
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource9, GPIO_AF_4); // [AF4(I2C1),PB9] = I2C1_SDA
+    // GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_4); // [AF4(I2C1),PB8] = I2C1_SCL
+    // GPIO_PinAFConfig(GPIOB, GPIO_PinSource9, GPIO_AF_4); // [AF4(I2C1),PB9] = I2C1_SDA
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_4); // [AF4(I2C1),PB6] = I2C1_SCL
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_4); // [AF4(I2C1),PB7] = I2C1_SDA
 
     /* 配置I2C1 */
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE); // 开启I2C时钟

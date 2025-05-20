@@ -49,7 +49,7 @@ TaskHandle_t serial_TH = NULL;
 
 typedef struct
 {
-    float data[12];
+    float data[16];
     uint32_t tail;
 } JustFloatFrame;
 
@@ -80,12 +80,9 @@ static void serial_task(void *parameters)
         frame.data[idx++] = motor.Id;
         frame.data[idx++] = motor.Iq;
 
-        // frame.data[2] = motor.Ua;
-        // frame.data[3] = motor.Ub;
-        // frame.data[4] = motor.Uc;
-        // frame.data[5] = motor.Ia;
-        // frame.data[6] = motor.Ib;
-        // frame.data[7] = motor.Ic;
+        frame.data[idx++] = motor.Ua;
+        frame.data[idx++] = motor.Ub;
+        frame.data[idx++] = motor.Uc;
 
         // frame.data[8] = motor.hfi.i_alpha_avg_0;
         // frame.data[9] = motor.hfi.i_alpha_avg_0;
@@ -151,14 +148,13 @@ void serial_on_receive(uint8_t *data, uint16_t len)
         break;
     }
 }
-
 int main(void)
 {
     // RTOS文档建议将所有优先级位都指定为抢占优先级位， 不保留任何优先级位作为子优先级位。
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
-
+    
     dev_init();
-
+    
     motor_init(&motor, 7, 12, 0, 1, 2);
 
     xTaskCreate(control_task, "control_task", 200, NULL, 2, &control_TH);

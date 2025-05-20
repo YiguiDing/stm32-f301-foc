@@ -36,6 +36,7 @@ void observer_as5600_align(Observer_AS5600 *self, Motor *motor)
 {
     motor->state = Align;
     motor_set_theta_omega(motor, 0, 0);                        //
+    dev_set_pwm_enable(Bit_SET);
     motor_set_dq_voltage(motor, 0.2 * motor->power_supply, 0); //
     dev_delay(1000);                                           // 1s
     float x = 0;
@@ -49,6 +50,7 @@ void observer_as5600_align(Observer_AS5600 *self, Motor *motor)
     }
     self->offset = -x;
     motor_set_dq_voltage(motor, 0, 0);
+    dev_set_pwm_enable(Bit_RESET);
     motor->state = Running;
 }
 void observer_as5600_update(Observer_AS5600 *self, Motor *motor, float dt)
