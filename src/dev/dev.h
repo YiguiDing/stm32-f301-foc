@@ -20,7 +20,7 @@ extern "C"
     void dev_init();
 #define dev_red_adc(ch) adc_get_value(ch)
 #define dev_set_pwm_duty(a, b, c) pwm_set_duty(a, b, c)
-#define dev_set_pwm_enable(flag) pwm_driver_enable(flag)
+#define dev_set_pwm_enable(flag) pwm_driver_set_enable(flag)
 // #ifdef INC_FREERTOS_H
 #if 0
     #define dev_delay(ms) vTaskDelay(ms / portTICK_PERIOD_MS)

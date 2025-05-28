@@ -8,11 +8,10 @@ void pwm_init()
 {
     /* 配置GPIO */
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE); // 开启GPIO的时钟
+
+    // 8 9 10 -> TIM1_CH1 TIM1_CH2 TIM1_CH3
     GPIO_InitTypeDef GPIO_InitStruct = {
-        // PA8 -> TIM1_CH1
-        // PA9 -> TIM1_CH2
-        // PA10 -> TIM1_CH3
-        .GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10, // 引脚
+        .GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10, // 引脚 PWM_A PWM_B PWM_C
         .GPIO_Mode = GPIO_Mode_AF,                         // 复用
         .GPIO_Speed = GPIO_Speed_Level_3,                  // 高速
         .GPIO_OType = GPIO_OType_PP,                       // 推挽
@@ -20,16 +19,37 @@ void pwm_init()
     };
     GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    // enable pin
+    // 4 5号引脚：N_RESET(out) N_SLEEP(out)
+    GPIO_InitTypeDef GPIO_InitStruct_OUT = {
+        .GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5, //
+        .GPIO_Mode = GPIO_Mode_OUT,          // 输出模式
+        .GPIO_Speed = GPIO_Speed_Level_3,    // 50MHz
+        .GPIO_OType = GPIO_OType_PP,         // 推挽输出
+        .GPIO_PuPd = GPIO_PuPd_UP,           // 上拉
+    };
+    GPIO_Init(GPIOA, &GPIO_InitStruct_OUT); // 初始化
+    // 6号引脚：N_FAULT(in)
+    GPIO_InitTypeDef GPIO_InitStruct_IN = {
+        .GPIO_Pin = GPIO_Pin_6,           //
+        .GPIO_Mode = GPIO_Mode_IN,        // 输入模式
+        .GPIO_Speed = GPIO_Speed_Level_3, // 50MHz
+        .GPIO_OType = GPIO_OType_OD,      // 开漏输出
+        .GPIO_PuPd = GPIO_PuPd_UP,        // 上拉
+    };
+    GPIO_Init(GPIOA, &GPIO_InitStruct_IN); // 初始化
+    // 7号引脚：EN(out)
     GPIO_InitTypeDef GPIO_InitStruct_EN = {
-        .GPIO_Pin = GPIO_Pin_11,          // 13号引脚
+        .GPIO_Pin = GPIO_Pin_7,           // 7号引脚
         .GPIO_Mode = GPIO_Mode_OUT,       // 输出模式
         .GPIO_Speed = GPIO_Speed_Level_3, // 50MHz
         .GPIO_OType = GPIO_OType_PP,      // 推挽输出
         .GPIO_PuPd = GPIO_PuPd_DOWN,      // 下拉
     };
     GPIO_Init(GPIOA, &GPIO_InitStruct_EN); // 初始化
-    pwm_driver_enable(Bit_RESET);
+
+    pwm_driver_set_enable(Bit_RESET); // not enable
+    pwm_driver_set_sleep(Bit_RESET);  // not sleep
+    pwm_driver_set_reset(Bit_RESET);  // not reset
 
     /*复用功能配置*/
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_6);  // [AF6(SPI2/I2S2/SPI3/I2S3/TIM1/Infrared),PA8] = TIM1_CH1
@@ -127,11 +147,22 @@ void pwm_set_duty(float dutyA, float dutyB, float dutyC)
     TIM_SetCompare3(TIM1, dutyC * 1000);
 }
 
-void pwm_driver_enable(BitAction flag)
+void pwm_driver_set_reset(BitAction flag)
 {
-    GPIO_WriteBit(GPIOA, GPIO_Pin_11, flag);
+    GPIO_WriteBit(GPIOA, GPIO_Pin_4, !flag);
 }
-
+void pwm_driver_set_sleep(BitAction flag)
+{
+    GPIO_WriteBit(GPIOA, GPIO_Pin_5, !flag);
+}
+uint8_t pwm_driver_get_fault()
+{
+    return !GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_6);
+}
+void pwm_driver_set_enable(BitAction flag)
+{
+    GPIO_WriteBit(GPIOA, GPIO_Pin_7, flag);
+}
 #include "delay.h"
 void pwm_test()
 {

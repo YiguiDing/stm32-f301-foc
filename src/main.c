@@ -45,6 +45,19 @@ void pwm_on_update(float dt)
     motor_driver_update(&motor);
 }
 
+TaskHandle_t led_TH = NULL;
+void led_task()
+{
+    float freq = 25; // 25hz
+    float dt = 1 / freq;
+    float ticks = configTICK_RATE_HZ / freq;
+    for (;;)
+    {
+        led_toggle();
+        vTaskDelay(ticks);
+    }
+}
+
 TaskHandle_t serial_TH = NULL;
 
 typedef struct
@@ -152,14 +165,15 @@ int main(void)
 {
     // RTOS文档建议将所有优先级位都指定为抢占优先级位， 不保留任何优先级位作为子优先级位。
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
-    
+
     dev_init();
-    
+
     motor_init(&motor, 7, 12, 0, 1, 2);
 
     xTaskCreate(control_task, "control_task", 200, NULL, 2, &control_TH);
     xTaskCreate(position_task, "position_task", 300, NULL, 3, &position_TH);
     xTaskCreate(serial_task, "serial_task", 300, NULL, 4, &serial_TH);
+    xTaskCreate(led_task, "led_task", 100, NULL, 5, &led_TH);
 
     vTaskStartScheduler();
     for (;;)

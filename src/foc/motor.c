@@ -165,8 +165,8 @@ void motor_current_observer_update(Motor *motor, float dt)
 // ########################################################
 //                        电流观测
 // ########################################################
-#define Ia_OFFSET 0
-#define Ib_OFFSET 0
+#define Ia_OFFSET +0.11
+#define Ib_OFFSET +0.005
 
     float Ia = (dev_red_adc(motor->ch_ia) - 0.5f) / 50 / 0.01f + Ia_OFFSET;  // [0,1] -> [-0.5,0.5] -> 0.01Ω 50倍 i=u/r
     float Ib = -(dev_red_adc(motor->ch_ib) - 0.5f) / 50 / 0.01f + Ib_OFFSET; // [0,1] -> [-0.5,0.5] -> 0.01Ω 50倍 i=u/r
