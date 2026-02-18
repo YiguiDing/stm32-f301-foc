@@ -17,7 +17,7 @@ extern "C"
         float Ialpha_hat, Ibeta_hat;
         float Ealpha_hat, Ebeta_hat;
         float Hgain, delta;
-        float theta_hat, omega_hat;
+        float theta_raw, theta_hat, omega_hat;
         LowpassFilter lpf_omega;
         PLL pll;
     } Observer_SMO;

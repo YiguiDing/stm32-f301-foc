@@ -1,12 +1,13 @@
 #include "pid.h"
-void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float limit, float roc)
+void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float integral_limit, float output_limit, float output_roc_limit)
 {
     // 初始化参数
     ctrl->Kp = Kp;
     ctrl->Ki = Ki;
     ctrl->Kd = Kd;
-    ctrl->output_limit = limit;
-    ctrl->output_roc_limit = roc;
+    ctrl->integral_limit = integral_limit;
+    ctrl->output_limit = output_limit;
+    ctrl->output_roc_limit = output_roc_limit;
     // 初始化状态
     ctrl->pre_error = 0.0f;
     ctrl->pre_integral = 0.0f;
@@ -30,20 +31,22 @@ float pid_update(PidController *ctrl, float error, float dt)
         else if (output_roc < -ctrl->output_roc_limit)
             output = ctrl->pre_output - ctrl->output_roc_limit * dt;
     }
-    // 限制输出幅值
     if (ctrl->output_limit != 0.0f)
     {
+        // 限制输出幅值
         if (output > ctrl->output_limit)
             output = ctrl->output_limit;
         else if (output < -ctrl->output_limit)
             output = -ctrl->output_limit;
     }
-
-    // 限制积分累积量
-    if (integral > ctrl->output_limit)
-        integral = ctrl->output_limit;
-    else if (integral < -ctrl->output_limit)
-        integral = -ctrl->output_limit;
+    if (ctrl->integral_limit != 0.0f)
+    {
+        // 限制积分累积量
+        if (integral > ctrl->integral_limit)
+            integral = ctrl->integral_limit;
+        else if (integral < -ctrl->integral_limit)
+            integral = -ctrl->integral_limit;
+    }
 
     // // 更新状态
     ctrl->pre_error = error;

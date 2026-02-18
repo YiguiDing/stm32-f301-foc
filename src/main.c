@@ -52,6 +52,7 @@ static void observer_update(void *parameters)
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
     {
+        motor_sensor_update(&motor, Ts);
         motor_observer_update(&motor, Ts);
         vTaskDelay(ticks);
     }
@@ -65,7 +66,7 @@ static void control_update(void *parameters)
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
     {
-        motor_ctontrol_update(&motor, Ts);
+        motor_control_update(&motor, Ts);
         vTaskDelay(ticks);
     }
 }
@@ -86,7 +87,7 @@ TaskHandle_t TH_serial = NULL;
 
 typedef struct
 {
-    float data[20];
+    float data[21];
     uint32_t tail;
 } JustFloatFrame;
 
@@ -118,6 +119,7 @@ static void serial_task(void *parameters)
         frame.data[idx++] = motor.e_theta;
         frame.data[idx++] = motor.e_omega;
         // 速度和位置
+        frame.data[idx++] = motor.smo.theta_raw; // 原始角度
         frame.data[idx++] = motor.smo.theta_hat;
         frame.data[idx++] = motor.smo.omega_hat;
         // 反电动势
@@ -200,7 +202,7 @@ int main(void)
     // motor_init(&motor, 112e-3, 9e-6,2300, 7, 12);
     motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12);
     xTaskCreate(i2c_update, "i2c_update", 100, NULL, 2, &TH_i2c);
-    xTaskCreate(control_update, "control_update", 100, NULL, 2, &TH_control);
+    xTaskCreate(control_update, "control_update", 200, NULL, 2, &TH_control);
     xTaskCreate(observer_update, "observer_update", 100, NULL, 3, &TH_observer);
     xTaskCreate(serial_task, "serial_task", 100, NULL, 4, &TH_serial);
     // xTaskCreate(swo_task, "swo_task", 500, NULL, 4, &TH_swo);

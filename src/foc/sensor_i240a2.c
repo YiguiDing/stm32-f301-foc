@@ -13,8 +13,8 @@ void sensor_i240a2_init(Sensor_I240A2 *self)
 }
 void sensor_i240a2_align(Sensor_I240A2 *self, Motor *motor)
 {
-    motor_set_dq_voltage(motor, 0, 0, 0); // 设置DQ电压为0
-    dev_delay(50);                        // 延时50ms
+    motor_set_dq_voltage(motor, 0, 0); // 设置DQ电压为0
+    dev_delay(50);                     // 延时50ms
     float Ia_avg = 0, Ib_avg = 0, Ic_avg = 0;
     self->Ia_offset = 0;
     self->Ib_offset = 0;

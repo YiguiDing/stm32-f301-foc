@@ -13,8 +13,8 @@ void observer_smo_init(Observer_SMO *self)
     self->theta_hat = 0.0f;
     self->omega_hat = 0.0f;
 
-    lpf_init(&self->lpf_omega, 1 / 100.0f);
-    pll_init(&self->pll, 0 / 2e3, 200.0f, 10.0f, 800.0f);
+    // lpf_init(&self->lpf_omega, 1 / 100.0f);
+    pll_init(&self->pll, 0, 200.0f, 0.0f, 0.0f);
 }
 float smo_sat(float x, float delta)
 {
@@ -69,9 +69,8 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // self->omega_hat = lpf_update(&self->lpf_omega, omega_raw, Ts);
 
     // 3 直接计算 + 锁相环 能观测角度，可以闭环
-    float theta_raw = -_atan2(self->Ealpha_hat, self->Ebeta_hat);
-    // float theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat) + M_PI_2);
-    float diff = smo_phrase_diff(theta_raw, self->pll.theta_hat);
+    self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
+    float diff = smo_phrase_diff(self->theta_raw, self->pll.theta_hat);
     pll_update(&self->pll, diff, Ts);
     self->theta_hat = self->pll.theta_hat;
     self->omega_hat = self->pll.omega_hat;
@@ -87,9 +86,10 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // self->omega_hat = self->pll.omega_hat;
 
     // 4 未实现测试
+    // self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
     // float E_d = (motor->cos_e_theta * self->Ealpha_hat + motor->sin_e_theta * self->Ebeta_hat);
     // float E_d_err = 0 - E_d;
     // pll_update(&self->pll, E_d_err, Ts);
-    // self->theta_hat = self->pll.theta_hat;
-    // self->omega_hat = self->pll.omega_hat;
+    // self->theta_hat = -self->pll.theta_hat;
+    // self->omega_hat = -self->pll.omega_hat;
 }

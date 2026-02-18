@@ -8,12 +8,13 @@ extern "C"
     typedef struct
     {
         float Kp, Ki, Kd;       // pid系数
+        float integral_limit;  // 积分累积量限制
         float output_limit;     // 限制输出幅值
         float output_roc_limit; // 限制输出最大变化率 ROC(rate of change)输出变化率
         float pre_error, pre_integral, pre_output;
     } PidController;
 
-    void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float limit, float roc);
+    void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float integral_limit, float output_limit, float output_roc_limit);
     float pid_update(PidController *ctrl, float error, float dt);
     float pid_reset(PidController *ctrl);
 #ifdef __cplusplus

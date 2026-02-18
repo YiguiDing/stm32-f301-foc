@@ -109,11 +109,12 @@ extern "C"
     void motor_set_theta_omega(Motor *motor, float theta, float omega);
     void motor_set_e_theta_omega(Motor *motor, float e_theta, float e_omega);
     // ######################################################################
-    void motor_set_dq_voltage(Motor *motor, float Ud, float Uq, float e_theta);
-    void motor_set_phrase_current(Motor *motor, float Ia, float Ib, float Ic);
+    void motor_set_dq_voltage(Motor *motor, float Ud, float Uq);
+    void motor_set_abc_current(Motor *motor, float Ia, float Ib, float Ic);
     // ######################################################################
+    void motor_sensor_update(Motor *motor, float dt);
     void motor_observer_update(Motor *motor, float dt);
-    void motor_ctontrol_update(Motor *motor, float dt);
+    void motor_control_update(Motor *motor, float dt);
     void motor_driver_update(Motor *motor);
     void motor_foc_loop(Motor *motor, float dt);
     // ######################################################################

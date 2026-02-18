@@ -24,7 +24,8 @@ float sensor_as5600_i2c_read()
 
 void sensor_as5600_align(Sensor_as5600 *self, Motor *motor)
 {
-    motor_set_dq_voltage(motor, 0.2 * motor->power_supply, 0, 0);
+    motor_set_e_theta_omega(motor, 0, 0);
+    motor_set_dq_voltage(motor, 0.2 * motor->power_supply, 0);
     dev_delay(50);
     float avg = 0;
     for (uint8_t n = 1; n <= 100; n++)
@@ -35,7 +36,7 @@ void sensor_as5600_align(Sensor_as5600 *self, Motor *motor)
         dev_delay(10);
     }
     self->theta_offset = -avg;
-    motor_set_dq_voltage(motor, 0, 0, 0);
+    motor_set_dq_voltage(motor, 0, 0);
     dev_delay(50);
 }
 void sensor_as5600_update(Sensor_as5600 *self, Motor *motor, float dt)

@@ -32,10 +32,10 @@ void motor_init(Motor *self, float R, float L, float KV, uint8_t pole_pairs, flo
     self->limit_current = 10;
     self->limit_velocity = 500;
     // ######################################################################
-    pid_init(&self->pid_id_controller, 2, 0.5, 0, self->limit_voltage, 0.0f);
-    pid_init(&self->pid_iq_controller, 2, 0.5, 0, self->limit_voltage, 0.0f);
-    pid_init(&self->pid_velocity_controller, 0.1, 0.05, 0, self->limit_current, 0.0f);
-    pid_init(&self->pid_position_controller, 5, 2.5, 0, self->limit_velocity, 0.0f);
+    pid_init(&self->pid_id_controller, 2, 0.5, 0, 0, self->limit_voltage, 0.0f);
+    pid_init(&self->pid_iq_controller, 2, 0.5, 0, 0, self->limit_voltage, 0.0f);
+    pid_init(&self->pid_velocity_controller, 0.1, 0.05, 0, 0, self->limit_current, 0.0f);
+    pid_init(&self->pid_position_controller, 5, 2.5, 0, 0, self->limit_velocity, 0.0f);
     // ######################################################################
     sensor_i240a2_init(&self->i240a2);
     sensor_i240a2_align(&self->i240a2, self);
@@ -63,42 +63,58 @@ void motor_set_e_theta_omega(Motor *self, float e_theta, float e_omega)
     self->sin_e_theta = _sin(e_theta);
     self->cos_e_theta = _cos(e_theta);
 }
-void motor_set_phrase_current(Motor *self, float Ia, float Ib, float Ic)
+/**
+ * 设置abc轴电流
+ * - 为防止重复计算三角函数 需要先调用 motor_set_e_theta
+ */
+void motor_set_abc_current(Motor *self, float Ia, float Ib, float Ic)
 {
-    // #define M_SQRT3 1.73205080757f // sqrt(3)
     self->Ia = Ia;
     self->Ib = Ib;
     self->Ic = Ic;
-    // 克拉克变换
-    self->Ialpha = self->Ia; // 等幅值形式
-    self->Ibeta = M_SQRT3 / 3 * self->Ia + 2 * M_SQRT3 / 3 * self->Ib;
+#define M_SQRT3_3 0.5773502691896257  // sqrt(3)/3
+#define M_2SQRT3_3 1.1547005383792515 // 2*sqrt(3)/3
+    // 克拉克变换（等幅值形式）
+    // Ialpha = Ia
+    // Ibeta = (sqrt(3)/3) * Ia + (2*sqrt(3)/3) * Ib
+    self->Ialpha = self->Ia;
+    self->Ibeta = M_SQRT3_3 * self->Ia + M_2SQRT3_3 * self->Ib;
     // 帕克变换
+    // Id = cos(θ) * Ialpha + sin(θ) * Ibeta
+    // Id = -sin(θ) * Ialpha + cos(θ) * Ibeta
     self->Id = self->cos_e_theta * self->Ialpha + self->sin_e_theta * self->Ibeta;
     self->Iq = -self->sin_e_theta * self->Ialpha + self->cos_e_theta * self->Ibeta;
 }
 /**
  * 设置dq轴电压
- * - 需要先调用 motor_set_e_theta
+ * - 为防止重复计算三角函数 需要先调用 motor_set_e_theta
  */
-void motor_set_dq_voltage(Motor *self, float Ud, float Uq, float e_theta)
+void motor_set_dq_voltage(Motor *self, float Ud, float Uq)
 {
     self->Ud = Ud;
     self->Uq = Uq;
+
     // 帕克逆变换
-    float cos_e_theta = _cos(e_theta);
-    float sin_e_theta = _sin(e_theta);
-    self->Ualpha = cos_e_theta * Ud - sin_e_theta * Uq;
-    self->Ubeta = sin_e_theta * Ud + cos_e_theta * Uq;
+    // Ualpha = cos(θ) * Ud - sin(θ) * Uq
+    // Ubeta = sin(θ) * Ud + cos(θ) * Uq
+    self->Ualpha = self->cos_e_theta * Ud - self->sin_e_theta * Uq;
+    self->Ubeta = self->sin_e_theta * Ud + self->cos_e_theta * Uq;
 
     switch (self->modulation)
     {
-    case SPWM: // 帕克逆变换+克拉克逆变换 耗时13us
+    case SPWM: // 克拉克逆变换
     {
-        // 克拉克逆变换
-        self->Ua = self->Ualpha; // 等赋值形式
-        self->Ub = -0.5f * self->Ualpha + 0.5f * M_SQRT3 * self->Ubeta;
-        self->Uc = -(self->Ua + self->Ub); // 基尔霍夫电压电流定律
-        // 设置相电压
+#define M_SQRT3_2 0.8660254037844386 // (sqrt(3)/2)
+
+        // 克拉克逆变换(等赋值形式)
+        // Ua = Ualpha
+        // Ub = -0.5 * Ualpha + (sqrt(3)/2) * Ubeta
+        // Uc = -0.5 * Ualpha - (sqrt(3)/2) * Ubeta = -(Ua + Ub) // 基尔霍夫电压电流定律
+        self->Ua = self->Ualpha;
+        self->Ub = -0.5f * self->Ualpha + M_SQRT3_2 * self->Ubeta;
+        self->Uc = -(self->Ua + self->Ub);
+
+        // 计算PWM占空比
         // [-power_supply,+power_supply] => [-0.5,+0.5] => [0,1]
         self->Ta = self->Ua / self->power_supply * 0.5f + 0.5f;
         self->Tb = self->Ub / self->power_supply * 0.5f + 0.5f;
@@ -107,10 +123,10 @@ void motor_set_dq_voltage(Motor *self, float Ud, float Uq, float e_theta)
     break;
     case SVPWM:
     {
-#define M_PI_3 1.0471975512f // pi/3
+#define M_PI_3 1.0471975511965979 // 60° = PI/3
 
-        int sector = e_theta / M_PI_3;
-        float alpha = e_theta - sector * M_PI_3;
+        int sector = self->e_theta / M_PI_3;
+        float alpha = self->e_theta - sector * M_PI_3;
 
         float H = self->Uq / self->power_supply;
 
@@ -157,10 +173,13 @@ void motor_set_dq_voltage(Motor *self, float Ud, float Uq, float e_theta)
             Tc = 0;
         }
 
+        // 相电压
+        // [0,1] => [-0.5, 0.5] => [-power_supply, +power_supply]
         self->Ua = (Ta - 0.5) * self->power_supply;
         self->Ub = (Tb - 0.5) * self->power_supply;
         self->Uc = (Tc - 0.5) * self->power_supply;
 
+        // pwm占空比
         self->Ta = Ta;
         self->Tb = Tb;
         self->Tc = Tc;
@@ -171,45 +190,39 @@ void motor_set_dq_voltage(Motor *self, float Ud, float Uq, float e_theta)
     }
 }
 
-void motor_observer_update(Motor *self, float dt)
+void motor_sensor_update(Motor *self, float dt)
 {
     sensor_i240a2_update(&self->i240a2);
-    motor_set_phrase_current(self, self->i240a2.Ia_hat, self->i240a2.Ib_hat, self->i240a2.Ic_hat);
-
-    observer_smo_update(&self->smo, self, dt);
-    // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
-
+    motor_set_abc_current(self, self->i240a2.Ia_hat, self->i240a2.Ib_hat, self->i240a2.Ic_hat);
     // sensor_as5600_update(&self->as5600, self, dt);
     // motor_set_theta_omega(self, self->as5600.theta_mes, self->as5600.omega_hat);
+}
+void motor_observer_update(Motor *self, float dt)
+{
+    observer_smo_update(&self->smo, self, dt);
+    // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
 }
 /**
  * 设置dq轴电压
  * 中频任务
  */
-void motor_ctontrol_update(Motor *self, float dt)
+void motor_control_update(Motor *self, float dt)
 {
     if (self->state != Running)
         return;
-
     switch (self->control)
     {
     case OPEN_LOOP_VOLFREQ_CTRL:
     {
         float vf_target = self->target;
         motor_open_loop_voltage_freq_ctrl(self, vf_target, dt);
-        if (self->target > 5)
-            self->control = OPEN_LOOP_VOLTAGE_CTRL;
         break;
     }
     case OPEN_LOOP_VOLTAGE_CTRL:
     {
         float Ud_target = 0;
         float Uq_target = self->target;
-        // self->e_theta = _normalizeAngle(self->smo.theta_hat);
-        self->e_theta = _normalizeAngle(self->smo.theta_hat + M_PI_2);
         motor_open_loop_voltage_ctrl(self, Ud_target, Uq_target, dt);
-        if (self->target < 5)
-            self->control = OPEN_LOOP_VOLFREQ_CTRL;
         break;
     }
     case CLOSE_LOOP_CURRENT_CTRL:
@@ -246,26 +259,42 @@ void motor_driver_update(Motor *self)
 
 void motor_foc_loop(Motor *self, float dt)
 {
+    motor_sensor_update(self, dt);
     motor_observer_update(self, dt);
-    motor_ctontrol_update(self, dt);
+    motor_control_update(self, dt);
     motor_driver_update(self);
 }
 /**
- * 开环电压频率控制
+ * 开环电压频率控制(VF启动)
  */
 void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt)
 {
-    float voltage_target = vf_target;
-    self->e_omega = voltage_target * 15 * self->KVerps; // 20倍kv值
-    self->e_theta = _normalizeAngle(self->e_theta += self->e_omega * dt);
-    motor_set_dq_voltage(self, 0, voltage_target, self->e_theta);
+    float accFactor = vf_target <= 1.0f ? vf_target : expf((vf_target - 1.0f)); // 加速因子
+    float voltage = fminf(accFactor, self->power_supply);                       // 电压限幅
+    float e_omega = voltage * self->KVerps;                                     // 电角速度 = V * 电机KV值(单位: e_omega/s)
+    float e_theta = self->e_theta + e_omega * dt;
+    motor_set_e_theta_omega(self, e_theta, e_omega);
+    motor_set_dq_voltage(self, 0, voltage);
 }
 /**
  * 开环电压控制
  */
 void motor_open_loop_voltage_ctrl(Motor *self, float Ud_target, float Uq_target, float dt)
 {
-    motor_set_dq_voltage(self, Ud_target, Uq_target, self->e_theta);
+    static uint8_t vf_start = 0;
+
+    if (Uq_target < 0.3 * self->power_supply)
+        vf_start = 1;
+    if (Uq_target > 0.3 * self->power_supply)
+        vf_start = 0;
+
+    if (vf_start == 1)
+    {
+        motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
+        return;
+    }
+    motor_set_e_theta_omega(self, self->smo.theta_hat + M_PI_2, self->smo.omega_hat);
+    motor_set_dq_voltage(self, Ud_target, Uq_target);
 }
 /**
  * 闭环电流控制
@@ -276,7 +305,7 @@ void motor_close_loop_current_ctrl(Motor *self, float Id_target, float Iq_target
     float Iq_error = Iq_target - lpf_update(&self->iq_filter, self->Iq, dt); // 计算q轴电流误差
     float Ud_target = pid_update(&self->pid_id_controller, Id_error, dt);    // 更新d轴电流环pid控制器
     float Uq_target = pid_update(&self->pid_iq_controller, Iq_error, dt);    // 更新q轴电流环pid控制器
-    motor_set_dq_voltage(self, Ud_target, Uq_target, self->e_theta);         // 设置dq轴电压
+    motor_open_loop_voltage_ctrl(self, Ud_target, Uq_target, dt);            // 电流开环控制
 }
 /**
  * 闭环速度控制
