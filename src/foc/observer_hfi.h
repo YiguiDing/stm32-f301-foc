@@ -2,8 +2,8 @@
 #define __OBSERVER_HFI_H__
 
 #include <stdint.h>
-#include "foc_math.h"
-#include "pid_controller.h"
+#include "foc.h"
+#include "pid.h"
 #include "pll.h"
 
 typedef struct Motor Motor;

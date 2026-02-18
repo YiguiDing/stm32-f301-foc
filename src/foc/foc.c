@@ -1,5 +1,6 @@
-#include "foc_math.h"
+#include "foc.h"
 #include "stdint.h"
+
 float _normalizeAngle(float a)
 {
     a = fmodf(a, M_TWOPI);
@@ -20,23 +21,15 @@ float _constrain(float min, float value, float max)
 // it easy to borrow.
 float _atan2(float y, float x)
 {
-    // a := min (|x|, |y|) / max (|x|, |y|)
     float abs_y = fabsf(y);
     float abs_x = fabsf(x);
-    // inject FLT_MIN in denominator to avoid division by zero
     float a = fmin(abs_x, abs_y) / (fmax(abs_x, abs_y));
-    // s := a * a
     float s = a * a;
-    // r := ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a
-    float r =
-        ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
-    // if |y| > |x| then r := 1.57079637 - r
+    float r = ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
     if (abs_y > abs_x)
         r = 1.57079637f - r;
-    // if x < 0 then r := 3.14159274 - r
     if (x < 0.0f)
         r = 3.14159274f - r;
-    // if y < 0 then r := -r
     if (y < 0.0f)
         r = -r;
     return r;

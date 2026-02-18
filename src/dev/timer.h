@@ -11,7 +11,7 @@ extern "C"
     {
         uint32_t prev_us;
         uint32_t dt_us;
-    } timer_t;
+    } timer;
 
     void timer_init();
     uint32_t timer_get_us();

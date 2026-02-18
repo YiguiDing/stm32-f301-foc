@@ -13,9 +13,9 @@ extern "C"
         float pre_error, pre_integral, pre_output;
     } PidController;
 
-    void pid_controller_init(PidController *ctrl, float Kp, float Ki, float Kd, float limit, float roc);
-    float pid_controller_update(PidController *ctrl, float error, float dt);
-    float pid_controller_reset(PidController *ctrl);
+    void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float limit, float roc);
+    float pid_update(PidController *ctrl, float error, float dt);
+    float pid_reset(PidController *ctrl);
 #ifdef __cplusplus
 }
 #endif

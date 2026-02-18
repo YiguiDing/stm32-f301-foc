@@ -12,8 +12,8 @@ extern "C"
         float x_prev;
     } LowpassFilter;
 
-    void lowpass_filter_init(LowpassFilter *filter, float alpha);
-    float lowpass_filter_update(LowpassFilter *filter, float x, float dt);
+    void lpf_init(LowpassFilter *self, float Ts);
+    float lpf_update(LowpassFilter *self, float x, float dt);
 
 #ifdef __cplusplus
 }

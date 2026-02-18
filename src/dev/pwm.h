@@ -8,11 +8,12 @@ extern "C"
 {
 #endif
 
-    extern float pwm_freq;
-    void pwm_init();
-    void pwm_on_update(float dt);
-    void pwm_set_duty(float dutyA, float dutyB, float dutyC);
-
+    void pwm1_init();
+    void pwm1_set_freq(float freq);
+    void pwm1_set_callback(void (*on_update)(float Ts));
+    void pwm1_set_duty(float dutyA, float dutyB, float dutyC);
+    void pwm1_start();
+    void pwm1_stop();
 #ifdef __cplusplus
 }
 #endif

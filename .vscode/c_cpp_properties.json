@@ -17,8 +17,9 @@
                 "STM32F301x8",
                 "USE_STDPERIPH_DRIVER",
                 "ARM_MATH_CM4",
-                "__BSD_VISIBLE=1",
-                "__FPU_PRESENT=1"
+                "_DEFAULT_SOURCE",
+                "__BSD_VISIBLE",
+                "__FPU_PRESENT"
             ]
         }
     ],

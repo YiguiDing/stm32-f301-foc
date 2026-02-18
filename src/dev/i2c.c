@@ -82,7 +82,7 @@ uint8_t i2c_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t len
         goto _stop_;
     // #########################################################################################
     /* Configure slave address, nbytes, reload, end mode and start or stop generation */
-    I2C_TransferHandling(I2C1, dev_addr, 1 + len, I2C_AutoEnd_Mode, I2C_Generate_Start_Write);
+    I2C_TransferHandling(I2C1, (dev_addr << 1) | 0, 1 + len, I2C_AutoEnd_Mode, I2C_Generate_Start_Write);
     /* Wait until TXIS flag is set */
     if ((is_timeout = i2c_await(I2C_ISR_TXIS)))
         goto _stop_;
@@ -121,51 +121,36 @@ uint8_t i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t len)
     // #########################################################################################
     /* Test on BUSY Flag */
     if (is_timeout = i2c_await_not(I2C_ISR_BUSY))
-    {
-        serial_printf("0\n");
         goto _stop_;
-    }
     // #########################################################################################
     /* Configure slave address, nbytes, reload, end mode and start or stop generation */
-    I2C_TransferHandling(I2C1, dev_addr, 1, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
+    I2C_TransferHandling(I2C1, (dev_addr << 1) | 1, 1, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
     /* Wait until TXIS flag is set */
     if ((is_timeout = i2c_await(I2C_ISR_TXIS)))
-    {
-        serial_printf("1\n");
         goto _stop_;
-    }
     // #########################################################################################
     /* Send Register address */
     I2C_SendData(I2C1, reg_addr);
     /* Wait until TC flag is set */
     if ((is_timeout = i2c_await(I2C_ISR_TC)))
-    {
-        serial_printf("2\n");
         goto _stop_;
-    }
     // #########################################################################################
     /* Configure slave address, nbytes, reload, end mode and start or stop generation */
-    I2C_TransferHandling(I2C1, dev_addr, len, I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
+    I2C_TransferHandling(I2C1, (dev_addr << 1) | 1, len, I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
     // #########################################################################################
     /* reveive data */
     while (len--)
     {
         /* Wait until RXNE flag is set */
         if ((is_timeout = i2c_await(I2C_ISR_RXNE)))
-        {
-            serial_printf("3\n");
             goto _stop_;
-        }
         /* Read data from RXDR */
         *(data++) = I2C_ReceiveData(I2C1);
     }
     // #########################################################################################
     /* Wait until STOPF flag is set */
     if ((is_timeout = i2c_await(I2C_ISR_STOPF)))
-    {
-        serial_printf("4\n");
         goto _stop_;
-    }
 _stop_:
     /* Clear STOPF flag */
     I2C_ClearFlag(I2C1, I2C_ICR_STOPCF);
@@ -185,7 +170,7 @@ void i2c_test()
     serial_printf("i2c_init\n");
     while (1)
     {
-        i2c_read(0x36 << 1, 0x0E, data, 2);
+        i2c_read(0x36, 0x0E, data, 2);
         angle = data[0] << 8 | data[1];
         serial_printf("angle:%d.\n", angle);
         delay(10);

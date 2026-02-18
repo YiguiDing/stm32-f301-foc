@@ -1,9 +1,9 @@
 #ifndef __PLL_H__
 #define __PLL_H__
 
-#include "foc_math.h"
-#include "lowpass_filter.h"
-#include "pid_controller.h"
+#include "foc.h"
+#include "lpf.h"
+#include "pid.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -12,13 +12,13 @@ extern "C"
 
     typedef struct
     {
-        float theta; // 角度
-        float omega; // 角速度
-        LowpassFilter filter;
+        float theta_hat; // 估计角度
+        float omega_hat; // 估计角速度
+        LowpassFilter lpf;
         PidController pid;
     } PLL;
 
-    void pll_init(PLL *pll, float Ts, float Kp, float Ki);
+    void pll_init(PLL *pll, float alpha, float Kp, float Ki, float omega_limit);
     float pll_update(PLL *pll, float theta, float dt);
     float pll_update_pd(PLL *pll, float phase_diff, float dt);
 

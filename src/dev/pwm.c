@@ -1,11 +1,21 @@
 
 #include "pwm.h"
-float pwm_freq;
+#include <stddef.h>
+
+float freq = 1e3;
+float Ts = 0.001;
+void (*pwm1_on_update)(float Ts) = NULL;
+
 /**
- * 产生PWM波，精度1% 频率1k 占空比默认50% 可调
+ * @param freq ∈ [1,72k]Hz
+ * @param callback 更新回调函数
  */
-void pwm_init()
+void pwm1_init()
 {
+    TIM_Cmd(TIM1, DISABLE); // 关闭定时器
+    freq = 1e3;
+    Ts = 1 / freq;
+    pwm1_on_update = NULL;
     /* 配置GPIO */
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE); // 开启GPIO的时钟
     GPIO_InitTypeDef GPIO_InitStruct = {
@@ -30,7 +40,7 @@ void pwm_init()
     NVIC_InitTypeDef NVIC_InitStruct = {
         .NVIC_IRQChannel = TIM1_UP_TIM16_IRQn,  // 中断通道: 定时器1
         .NVIC_IRQChannelPreemptionPriority = 0, // 抢占优先级,0最高优先级
-        .NVIC_IRQChannelSubPriority = 1,        // 响应优先级,0最高优先级
+        .NVIC_IRQChannelSubPriority = 0,        // 响应优先级,0最高优先级
         .NVIC_IRQChannelCmd = ENABLE,           // 启用通道
     };
     NVIC_Init(&NVIC_InitStruct); // 初始化NVIC
@@ -39,36 +49,37 @@ void pwm_init()
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE); // 开启时钟
     TIM_InternalClockConfig(TIM1);                       // 为时基单元选择内部时钟源
 
-    // 时钟源       预分频器      分辨率       输出频率
-    // 72Mhz ->     /72     ->   /1000 =     1khz
-    // 72Mhz ->     /7.2    ->   /1000 =     10khz
-    // 72Mhz ->     /3.6    ->   /1000 =     20khz
-    // 72Mhz ->     /5      ->   /1000 =     14.4khz
-    // 72Mhz ->     /4      ->   /1000 =     18khz
-    // 72Mhz ->     /3      ->   /1000 =     24khz
-    // 72Mhz ->     /2      ->   /1000 =     36khz
-    // 72Mhz ->     /1      ->   /1000 =     72khz
-    // 72Mhz ->     /1      ->   /3000 =     24khz
-    // 72Mhz ->     /1.8    ->   /2000 =     20khz
-    // 72Mhz ->     /1.8    ->   /2000 =     20khz
-    // 72Mhz ->     /2      ->   /4000 =     8khz
-    // 72Mhz ->     /0.9    ->   /4000 =     20khz
-    // 72Mhz ->     /1      ->   /4000 =     18khz
-    // 72Mhz ->     /7200  ->   /10000 =     1hz(1s)
-    pwm_freq = 18e3f; // 18khz
+    // 时钟源      输出频率     分辨率      预分频器
+    // 72Mhz ->   / 1.098hz     /1000       = 65536
+    // 72Mhz ->   / 1khz        /1000       = 72
+    // 72Mhz ->   / 2khz        /1000       = 36
+    // 72Mhz ->   / 4khz        /1000       = 18
+    // 72Mhz ->   / 8khz        /1000       = 9
+    // 72Mhz ->   / 14.4khz     /1000       = 5
+    // 72Mhz ->   / 18khz       /1000       = 4
+    // 72Mhz ->   / 24khz       /1000       = 3
+    // 72Mhz ->   / 36khz       /1000       = 2
+    // 72Mhz ->   / 72khz       /1000       = 1
     // 配置时基单元
     TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct = {
-        .TIM_ClockDivision = TIM_CKD_DIV1,     // 外部时钟信号滤波器,1分频,不滤波
-        .TIM_CounterMode = TIM_CounterMode_Up, // 计数模式，向上计数
-        .TIM_Prescaler = 4 - 1,                // 预分频器 PSC
-        .TIM_Period = 1000 - 1,                // 自动重装器 ARR
-        .TIM_RepetitionCounter = 0,            // 重复计数器，高级定时器才有
+        .TIM_ClockDivision = TIM_CKD_DIV1, // 外部时钟信号滤波器,1分频,不滤波
+        // TIM_CounterMode_Up (向上计数) 计数器从 0 开始递增，直到自动重装载值 (ARR)，然后归零并产生计数器溢出事件。
+        // TIM_CounterMode_Down(向下计数) 计数器从 0 计数器从 ARR 开始递减，直到 0，然后重新回到 ARR 并产生计数器下溢事件。
+        // TIM_CounterMode_CenterAligned1 (中央对齐模式1) 计数器从 0 递增到 ARR-1，产生计数器上溢事件，然后递减到 1，产生计数器下溢事件。 但仅在向下计数阶段（到达 0 之前）产生更新中断/标志 (UIF)
+        // TIM_CounterMode_CenterAligned2 (中央对齐模式2)  仅在向上计数阶段（到达 ARR 之前）产生更新中断/标志 (UIF)
+        // TIM_CounterMode_CenterAligned3 (中央对齐模式3) 在向上和向下计数阶段均产生更新中断/标志 (UIF)
+        .TIM_CounterMode = TIM_CounterMode_CenterAligned2,    // 计数模式
+        .TIM_Prescaler = (SystemCoreClock / 1000 / freq) - 1, // 预分频器 PSC = 72Mhz/1000/freq
+        .TIM_Period = 1000 - 1,                               // 自动重装器 ARR
+        .TIM_RepetitionCounter = 0,                           // 重复计数器，高级定时器才有
     };
     TIM_TimeBaseInit(TIM1, &TIM_TimeBaseInitStruct); // 初始化
 
     // 配置输出比较单元
     TIM_OCInitTypeDef TIM_OCInitStruct = {
-        .TIM_OCMode = TIM_OCMode_PWM1,                // 设置输出比较模式
+        // PWM1在 CNT<CCR 时输出 有效电平，
+        // PWM2在 CNT<CCR 时输出 无效电平
+        .TIM_OCMode = TIM_OCMode_PWM2,                // 设置输出比较模式
         .TIM_OutputState = TIM_OutputState_Enable,    // 使能输出
         .TIM_OutputNState = TIM_OutputNState_Disable, // 禁用互补输出
         .TIM_Pulse = 0x00000000,                      // 设置CCR捕获比较寄存器的值 [0x0000 and 0xFFFF]
@@ -88,12 +99,9 @@ void pwm_init()
 
     TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update); // for adc triger,事件映射: 更新事件 => TRGO事件
 
-    TIM_Cmd(TIM1, ENABLE); // 启动定时器
+    TIM_Cmd(TIM1, DISABLE); // 关闭定时器
 }
 
-void __attribute__((weak)) pwm_on_update(float dt)
-{
-}
 /**
  * 重写中断函数
  */
@@ -101,29 +109,51 @@ void TIM1_UP_TIM16_IRQHandler()
 {
     if (TIM_GetITStatus(TIM1, TIM_IT_Update) == SET)
     {
-        pwm_on_update(1 / pwm_freq);
+        if (pwm1_on_update)
+        {
+            pwm1_on_update(Ts);
+        }
         TIM_ClearITPendingBit(TIM1, TIM_IT_Update); // 清除更新中断
     }
 }
+void pwm1_set_freq(float freq)
+{
+    TIM1->PSC = (SystemCoreClock / 1000 / freq) - 1;
+}
+
+void pwm1_set_callback(void (*on_update)(float Ts))
+{
+    pwm1_on_update = on_update;
+}
+
 /**
  * 设置占空比
  * @param duty [0.0f,1.0f]
  */
-void pwm_set_duty(float dutyA, float dutyB, float dutyC)
+void pwm1_set_duty(float dutyA, float dutyB, float dutyC)
 {
     TIM_SetCompare1(TIM1, dutyA * 1000);
     TIM_SetCompare2(TIM1, dutyB * 1000);
     TIM_SetCompare3(TIM1, dutyC * 1000);
 }
 
+void pwm1_start()
+{
+    TIM_Cmd(TIM1, ENABLE);
+}
+void pwm1_stop()
+{
+    TIM_Cmd(TIM1, DISABLE);
+}
+
 #include "delay.h"
 void pwm_test()
 {
-    pwm_init();
+    pwm1_init(NULL, 18e3);
     uint16_t cnt = 0;
     while (1)
     {
-        pwm_set_duty(cnt, cnt, cnt); // 示波器测量波形占空比和频率
+        pwm1_set_duty(cnt, cnt, cnt); // 示波器测量波形占空比和频率
         cnt++;
         cnt %= 1000;
         delay(100);

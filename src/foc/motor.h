@@ -5,11 +5,11 @@
 #include <math.h>
 #include "dev.h"
 #include "pll.h"
-#include "foc_math.h"
-#include "pid_controller.h"
-#include "observer_fake.h"
-#include "observer_as5600.h"
-#include "observer_hfi.h"
+#include "foc.h"
+#include "pid.h"
+#include "sensor_i240a2.h"
+#include "sensor_as5600.h"
+#include "observer_smo.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -19,7 +19,7 @@ extern "C"
     // 状态
     typedef enum
     {
-        Align = 0,
+        Init = 0,
         Running = 1,
         Stop = 2,
     } MotorState;
@@ -35,10 +35,11 @@ extern "C"
     // 控制模式
     typedef enum
     {
-        OPEN_LOOP_VOLTAGE_CTRL = 0,
-        CLOSE_LOOP_CURRENT_CTRL = 1,
-        CLOSE_LOOP_VELOCITY_CTRL = 2,
-        CLOSE_LOOP_POSITION_CTRL = 3,
+        OPEN_LOOP_VOLFREQ_CTRL = 0,
+        OPEN_LOOP_VOLTAGE_CTRL = 1,
+        CLOSE_LOOP_CURRENT_CTRL = 2,
+        CLOSE_LOOP_VELOCITY_CTRL = 3,
+        CLOSE_LOOP_POSITION_CTRL = 4,
     } ControlType;
 
     // 调制模式
@@ -51,9 +52,10 @@ extern "C"
     typedef struct Motor
     {
         // ########################################
+        float R, L;
+        float KV, KVerps; // rpm/v erps/v
         uint8_t pole_pairs;
         float power_supply;
-        uint8_t ch_ia, ch_ib, ch_theta;
         // ########################################
         float target;              // 目标值
         MotorState state;          // 电机状态
@@ -62,11 +64,11 @@ extern "C"
         ModulationType modulation; // 调制模式
         // ########################################
         float Id, Iq;
-        float Ia, Ib, Ic;
         float Ialpha, Ibeta;
+        float Ia, Ib, Ic;
         // ########################################
         float Ud, Uq;
-        float Uahpha, Ubeta;
+        float Ualpha, Ubeta;
         float Ua, Ub, Uc;
         float Ta, Tb, Tc;
         // ########################################
@@ -95,26 +97,27 @@ extern "C"
         // clsoe_loop_position_ctrl
         PidController pid_position_controller;
         // ########################################
-        Observer_AS5600 as5600;
-        Observer_HFI hfi;
-        Observer_Fake fake;
+        Sensor_I240A2 i240a2;
+        Sensor_as5600 as5600;
+        // ########################################
+        Observer_SMO smo;
         // ########################################
     } Motor;
     // ######################################################################
-    void motor_init(Motor *motor, uint8_t pole_pairs, float power_supply, uint8_t ch_ia, uint8_t ch_ib, uint8_t ch_theta);
+    void motor_init(Motor *motor, float R, float L, float KV, uint8_t pole_pairs, float power_supply);
     // ######################################################################
     void motor_set_theta_omega(Motor *motor, float theta, float omega);
     void motor_set_e_theta_omega(Motor *motor, float e_theta, float e_omega);
     // ######################################################################
-    void motor_set_dq_voltage(Motor *motor, float Ud, float Uq);
+    void motor_set_dq_voltage(Motor *motor, float Ud, float Uq, float e_theta);
     void motor_set_phrase_current(Motor *motor, float Ia, float Ib, float Ic);
     // ######################################################################
-    void motor_current_observer_update(Motor *motor, float dt);
-    void motor_position_observer_update(Motor *motor, float dt);
+    void motor_observer_update(Motor *motor, float dt);
     void motor_ctontrol_update(Motor *motor, float dt);
     void motor_driver_update(Motor *motor);
     void motor_foc_loop(Motor *motor, float dt);
     // ######################################################################
+    void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt);
     void motor_open_loop_voltage_ctrl(Motor *motor, float Ud_target, float Uq_target, float dt);
     void motor_close_loop_current_ctrl(Motor *motor, float Id_target, float Iq_target, float dt);
     void motor_close_loop_velocity_ctrl(Motor *motor, float velocity_target, float dt);

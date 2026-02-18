@@ -5,84 +5,132 @@
 /* dev includes. */
 #include "dev.h"
 #include "motor.h"
+#include "math.h"
 
 Motor motor;
 
-void adc_on_update(float dt)
+void adc_update()
 {
-    motor_current_observer_update(&motor, dt);
+    static uint8_t cnt = 0;
+    cnt++;
+    if (cnt % 2 == 0)
+        return;
+
+    // I240A2 电流采样
+    // [0,1] -> [-0.5,0.5] /3.3 -> U_r -> 采样电阻0.01Ω 放大倍数50倍 i=u/r
+    motor.i240a2.Ia_mes = (ADC_GET_VALUE(0) - 0.5f) / 3.3f / 0.01f / 50;
+    motor.i240a2.Ib_mes = (ADC_GET_VALUE(1) - 0.5f) / 3.3f / 0.01f / 50;
+    motor.i240a2.Ic_mes = -(motor.i240a2.Ia_mes + motor.i240a2.Ib_mes);
+    // AS5600 analog引脚
+    // motor.as5600.theta_mes = ADC_GET_VALUE(2) * M_TWOPI;
 }
 
-TaskHandle_t position_TH = NULL;
-static void position_task(void *parameters)
+TaskHandle_t TH_i2c = NULL;
+static void i2c_update(void *parameters)
+{
+    float freq = 5e3; // 5khz
+    float Ts = 1 / freq;
+    float ticks = configTICK_RATE_HZ / freq;
+    for (;;)
+    {
+        motor.as5600.theta_mes = sensor_as5600_i2c_read();
+        vTaskDelay(ticks);
+    }
+}
+
+void driver_update(float Ts)
+{
+    pwm1_set_duty(motor.Ta, motor.Tb, motor.Tc);
+}
+
+TaskHandle_t TH_observer = NULL;
+static void observer_update(void *parameters)
 {
     // 1万转/分钟 -> 166转/秒 -> 1.166k电角度转/秒
-    float freq = 1.166e3; // 1.166khz
-    float dt = 1 / freq;
+    float freq = 5e3; // 5khz
+    float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
     {
-        motor_position_observer_update(&motor, dt);
+        motor_observer_update(&motor, Ts);
         vTaskDelay(ticks);
     }
 }
 
-TaskHandle_t control_TH = NULL;
-static void control_task(void *parameters)
+TaskHandle_t TH_control = NULL;
+static void control_update(void *parameters)
 {
-    float freq = 20e3; // 10khz
-    float dt = 1 / freq;
+    float freq = 10e3; // 10khz
+    float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
     {
-        motor_ctontrol_update(&motor, dt);
+        motor_ctontrol_update(&motor, Ts);
+        vTaskDelay(ticks);
+    }
+}
+TaskHandle_t TH_swo = NULL;
+static void swo_task(void *parameters)
+{
+    float freq = 0.5e3; // 1khz
+    float ticks = configTICK_RATE_HZ / freq;
+    uint8_t cnt = 0;
+    for (;;)
+    {
+        swo_printf("%f\n", 123.0f);
         vTaskDelay(ticks);
     }
 }
 
-void pwm_on_update(float dt)
-{
-    motor_driver_update(&motor);
-}
-
-TaskHandle_t serial_TH = NULL;
+TaskHandle_t TH_serial = NULL;
 
 typedef struct
 {
-    float data[12];
+    float data[20];
     uint32_t tail;
 } JustFloatFrame;
 
 static void serial_task(void *parameters)
 {
     float freq = 1e3; // 1khz
-    float dt = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     JustFloatFrame frame;
     for (;;)
     {
         uint8_t idx = 0;
-        frame.data[idx++] = (motor.as5600.theta_hat);
-        frame.data[idx++] = (motor.as5600.omega_hat);
-
-        frame.data[idx++] = motor.iq_filter.x_prev;
-        frame.data[idx++] = motor.id_filter.x_prev;
-        frame.data[idx++] = motor.velocity_filter.x_prev;
-        frame.data[idx++] = motor.position_filter.x_prev;
-
+        // 电压
+        frame.data[idx++] = motor.Ud;
+        frame.data[idx++] = motor.Uq;
+        frame.data[idx++] = motor.Ualpha;
+        frame.data[idx++] = motor.Ubeta;
+        frame.data[idx++] = motor.Ua;
+        frame.data[idx++] = motor.Ub;
+        frame.data[idx++] = motor.Uc;
+        // 电流
+        frame.data[idx++] = motor.Id;
+        frame.data[idx++] = motor.Iq;
+        frame.data[idx++] = motor.Ialpha;
+        frame.data[idx++] = motor.Ibeta;
         frame.data[idx++] = motor.Ia;
         frame.data[idx++] = motor.Ib;
         frame.data[idx++] = motor.Ic;
+        // 速度和位置
+        frame.data[idx++] = motor.e_theta;
+        frame.data[idx++] = motor.e_omega;
+        // 速度和位置
+        frame.data[idx++] = motor.smo.theta_hat;
+        frame.data[idx++] = motor.smo.omega_hat;
+        // 反电动势
+        frame.data[idx++] = motor.smo.Ealpha_hat;
+        frame.data[idx++] = motor.smo.Ebeta_hat;
+        // frame.data[idx++] = (motor.as5600.theta_mes);
+        // frame.data[idx++] = (motor.as5600.omega_hat);
 
-        frame.data[idx++] = motor.Ialpha;
-        frame.data[idx++] = motor.Ibeta;
+        // frame.data[idx++] = motor.iq_filter.x_prev;
+        // frame.data[idx++] = motor.id_filter.x_prev;
+        // frame.data[idx++] = motor.velocity_filter.x_prev;
+        // frame.data[idx++] = motor.position_filter.x_prev;
 
-        frame.data[idx++] = motor.Id;
-        frame.data[idx++] = motor.Iq;
-
-        // frame.data[2] = motor.Ua;
-        // frame.data[3] = motor.Ub;
-        // frame.data[4] = motor.Uc;
         // frame.data[5] = motor.Ia;
         // frame.data[6] = motor.Ib;
         // frame.data[7] = motor.Ic;
@@ -126,29 +174,6 @@ void serial_on_receive(uint8_t *data, uint16_t len)
     case 0x02:
         motor.control = (ControlType)val;
         break;
-    case 0x10:
-        motor.hfi.pll.filter.Ts = val;
-        break;
-    case 0x11:
-        motor.hfi.pll.pid.Kp = val;
-        break;
-    case 0x12:
-        motor.hfi.pll.pid.Ki = val;
-        break;
-    case 0x21:
-        motor.fake.velocity = val;
-        break;
-    case 0x30:
-        motor.as5600.pll.filter.Ts = val;
-        break;
-    case 0x31:
-        motor.as5600.pll.pid.Kp = val;
-        break;
-    case 0x32:
-        motor.as5600.pll.pid.Ki = val;
-        break;
-    default:
-        break;
     }
 }
 
@@ -156,14 +181,30 @@ int main(void)
 {
     // RTOS文档建议将所有优先级位都指定为抢占优先级位， 不保留任何优先级位作为子优先级位。
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+    // swo_init(0xFFFFFFFF, 72000000, 2000000);
+    // led_init();
+    //
+    adc_init();
+    adc_set_callback(adc_update);
+    //
+    pwm1_init();
+    pwm1_set_freq(24e3); // 24khz
+    pwm1_set_callback(driver_update);
+    pwm1_start();
+    //
+    i2c_init();
+    timer_init();
+    serial_init();
 
-    dev_init();
-
-    motor_init(&motor, 7, 12, 0, 1, 2);
-
-    xTaskCreate(control_task, "control_task", 200, NULL, 2, &control_TH);
-    xTaskCreate(position_task, "position_task", 300, NULL, 3, &position_TH);
-    xTaskCreate(serial_task, "serial_task", 300, NULL, 4, &serial_TH);
+    // R=112mΩ L=9uH pp=7 Vsat=12V
+    // motor_init(&motor, 112e-3, 9e-6,2300, 7, 12);
+    motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12);
+    xTaskCreate(i2c_update, "i2c_update", 100, NULL, 2, &TH_i2c);
+    xTaskCreate(control_update, "control_update", 100, NULL, 2, &TH_control);
+    xTaskCreate(observer_update, "observer_update", 100, NULL, 3, &TH_observer);
+    xTaskCreate(serial_task, "serial_task", 100, NULL, 4, &TH_serial);
+    // xTaskCreate(swo_task, "swo_task", 500, NULL, 4, &TH_swo);
+    motor_set_target(&motor, 0);
 
     vTaskStartScheduler();
     for (;;)

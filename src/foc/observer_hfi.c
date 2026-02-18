@@ -11,10 +11,20 @@ void observer_hfi_init(Observer_HFI *self)
     self->e_theta_hat = self->e_omega_hat = 0;
     // pll_init(&self->pll, 0.000011f, 100, 25);
     // pll_init(&self->pll, 0.000001f, 200, 150); // pwm_freq = 18khz => 5.5e-5
-    pll_init(&self->pll, 0.000001f, 250, 200); // pwm_freq = 18khz => 5.5e-5
+    // pll_init(&self->pll, 0.000001f, 250, 200); // pwm_freq = 18khz => 5.5e-5
     // pll_init(&self->pll, 0.000500f, 200, 50);  // pwm_freq = 18khz => 5.5e-5
 }
 
+float phrase_diff(float theta, float target)
+{
+
+    float diff = _normalizeAngle(target) - _normalizeAngle(theta);
+    if (diff > M_PI)
+        diff -= M_TWOPI;
+    else if (diff < -M_PI)
+        diff += M_TWOPI;
+    return diff; // diff ∈ [-M_PI,+M_PI]
+}
 void observer_hfi_update(Observer_HFI *self, Motor *motor, float dt)
 {
     // 获取电流
@@ -36,11 +46,19 @@ void observer_hfi_update(Observer_HFI *self, Motor *motor, float dt)
     // 锁相环
     if (!isnanf(self->e_theta_mes))
     {
-        pll_update(&self->pll, self->e_theta_mes, dt);
+        // 相位差   = sin(theta)*cos(target) - cos(theta)*sin(target)     ∈ [-1,+1]
+        //          ≈ sin(theta - target)                                ∈ [-1,+1]
+        //          ≈ _normalizeAngle(theta - target) - M_PI             ∈ [-M_PI,+M_PI]
+        // 角速度 = PI控制器(lpf低通滤波器(鉴相器))
+        // 角度 = 角速度 * dt
+        // float phase_diff = _cos(pll->theta) * _sin(target) - _sin(pll->theta) * _cos(target);
+        // float phase_diff = _sin(_normalizeAngle(pll->theta - target - M_PI));
+        // float phase_diff = _normalizeAngle(pll->theta - target) - M_PI;
+        pll_update(&self->pll, phrase_diff(self->e_theta_mes, self->pll.theta_hat), dt);
     }
 
-    self->e_theta_hat = self->pll.theta;
-    self->e_omega_hat = self->pll.omega;
+    self->e_theta_hat = self->pll.theta_hat;
+    self->e_omega_hat = self->pll.omega_hat;
     self->theta_hat = self->e_theta_hat / motor->pole_pairs;
     self->omega_hat = self->e_omega_hat / motor->pole_pairs;
 
@@ -54,22 +72,13 @@ void observer_hfi_update(Observer_HFI *self, Motor *motor, float dt)
     // motor->theta = self->theta_hat;
     // motor->omega = self->omega_hat;
 }
-float phrase_diff(float theta_a, float theta_b)
-{
-    float diff = _normalizeAngle(theta_a - theta_b);
-    if (fabs(diff) < M_PI)
-        return diff;
-    else if (diff > 0)
-        return diff - M_TWOPI;
-    else
-        return diff + M_TWOPI;
-}
+
 /**
  * 位置观测器动态方程
- * 
+ *
  * 《High Bandwidth Sensorless Algorithm for AC Machines Based on Square-wave Type Voltage Injection》--Young-doo Yoon
  * http://eepel.snu.ac.kr/wordpress/files/papers/conference/international/20091008_121712_High%20Bandwidth%20Sensorless%20Algorithm%20for%20AC%20Machines%20Based%20on%20Square-wave%20Type%20Voltage%20Injection/High%20Bandwidth_Young%20doo.pdf
- * 
+ *
  * 《基于无滤波器方波信号注入的永磁同步电机初始位置检测方法》-- 张国强
  * https://dgjsxb.ces-transaction.com/CN/abstract/abstract4574.shtml
  */

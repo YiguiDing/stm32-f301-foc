@@ -1,5 +1,5 @@
-#include "pid_controller.h"
-void pid_controller_init(PidController *ctrl, float Kp, float Ki, float Kd, float limit, float roc)
+#include "pid.h"
+void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float limit, float roc)
 {
     // 初始化参数
     ctrl->Kp = Kp;
@@ -13,7 +13,7 @@ void pid_controller_init(PidController *ctrl, float Kp, float Ki, float Kd, floa
     ctrl->pre_output = 0.0f;
 }
 
-float pid_controller_update(PidController *ctrl, float error, float dt)
+float pid_update(PidController *ctrl, float error, float dt)
 {
     // 计算PID控制输出
     float proportional = ctrl->Kp * error;
@@ -39,6 +39,12 @@ float pid_controller_update(PidController *ctrl, float error, float dt)
             output = -ctrl->output_limit;
     }
 
+    // 限制积分累积量
+    if (integral > ctrl->output_limit)
+        integral = ctrl->output_limit;
+    else if (integral < -ctrl->output_limit)
+        integral = -ctrl->output_limit;
+
     // // 更新状态
     ctrl->pre_error = error;
     ctrl->pre_integral = integral;
@@ -47,7 +53,7 @@ float pid_controller_update(PidController *ctrl, float error, float dt)
     return output;
 }
 
-float pid_controller_reset(PidController *ctrl)
+float pid_reset(PidController *ctrl)
 {
     ctrl->pre_error = 0.0f;
     ctrl->pre_integral = 0.0f;

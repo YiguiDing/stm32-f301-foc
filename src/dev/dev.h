@@ -3,6 +3,7 @@
 
 #include "stm32f30x.h"
 
+#include "swo.h"
 #include "led.h"
 #include "adc.h"
 #include "pwm.h"
@@ -19,7 +20,7 @@ extern "C"
 
     void dev_init();
 #define dev_red_adc(ch) adc_get_value(ch)
-#define dev_set_pwm_duty(a, b, c) pwm_set_duty(a, b, c)
+#define dev_set_pwm_duty(a, b, c) pwm1_set_duty(a, b, c)
 // #ifdef INC_FREERTOS_H
 #if 0
     #define dev_delay(ms) vTaskDelay(ms / portTICK_PERIOD_MS)
