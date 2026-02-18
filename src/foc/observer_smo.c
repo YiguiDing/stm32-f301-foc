@@ -69,27 +69,31 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // self->omega_hat = lpf_update(&self->lpf_omega, omega_raw, Ts);
 
     // 3 直接计算 + 锁相环 能观测角度，可以闭环
-    self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
-    float diff = smo_phrase_diff(self->theta_raw, self->pll.theta_hat);
-    pll_update(&self->pll, diff, Ts);
-    self->theta_hat = self->pll.theta_hat;
-    self->omega_hat = self->pll.omega_hat;
-
-    // 3 滤波计算 + 锁相环 未实现测试
-    // static float Ealpha = 0, Ebeta = 0;
-    // Ealpha = 0.9 * self->Ealpha_hat + 0.1 * Ealpha;
-    // Ebeta = 0.9 * self->Ebeta_hat + 0.1 * Ebeta;
-    // float theta_raw = -_atan2(self->Ealpha_hat, self->Ebeta_hat);
-    // float diff = smo_phrase_diff(theta_raw, self->pll.theta_hat);
+    // self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
+    // float diff = smo_phrase_diff(self->theta_raw, self->pll.theta_hat);
     // pll_update(&self->pll, diff, Ts);
     // self->theta_hat = self->pll.theta_hat;
     // self->omega_hat = self->pll.omega_hat;
 
-    // 4 未实现测试
-    // self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
-    // float E_d = (motor->cos_e_theta * self->Ealpha_hat + motor->sin_e_theta * self->Ebeta_hat);
-    // float E_d_err = 0 - E_d;
-    // pll_update(&self->pll, E_d_err, Ts);
-    // self->theta_hat = -self->pll.theta_hat;
-    // self->omega_hat = -self->pll.omega_hat;
+    // 3 滤波计算 + 锁相环 实际测试可以闭环，和上面区别不大
+    // static float Ealpha = 0, Ebeta = 0;
+    // Ealpha = 0.9 * self->Ealpha_hat + 0.1 * Ealpha;
+    // Ebeta = 0.9 * self->Ebeta_hat + 0.1 * Ebeta;
+    // self->theta_raw = _normalizeAngle(-_atan2(Ealpha, Ebeta));
+    // float diff = smo_phrase_diff(self->theta_raw, self->pll.theta_hat);
+    // pll_update(&self->pll, diff, Ts);
+    // self->theta_hat = self->pll.theta_hat;
+    // self->omega_hat = self->pll.omega_hat;
+
+    // 4 利用d轴反电动势应为0作为锁相环的鉴相器 实际测试可以闭环，但是需要再算一次sin和cos,另外依然存在锁相环角度和实际角度相差90°的问题。
+    self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
+    float cos_e_theta = _cos(self->pll.theta_hat);
+    float sin_e_theta = _sin(self->pll.theta_hat);
+    // 帕克变换
+    float Ed_hat = cos_e_theta * self->Ealpha_hat + sin_e_theta * self->Ebeta_hat;
+    float Eq_hat = -sin_e_theta * self->Ealpha_hat + cos_e_theta * self->Ebeta_hat;
+    float Ed_err = 0 - Ed_hat;
+    pll_update(&self->pll, Ed_err, Ts);
+    self->theta_hat = self->pll.theta_hat;
+    self->omega_hat = self->pll.omega_hat;
 }
