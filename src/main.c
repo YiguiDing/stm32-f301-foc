@@ -11,15 +11,15 @@ Motor motor;
 
 void adc_update()
 {
-    static uint8_t cnt = 0;
-    cnt++;
-    if (cnt % 2 == 0)
-        return;
+    // static uint8_t cnt = 0;
+    // cnt++;
+    // if (cnt % 2 == 0)// 只有半个周期能采样到电流，最后发现采样运放没有供电
+    //     return;
 
     // I240A2 电流采样
     // [0,1] -> [-0.5,0.5] /3.3 -> U_r -> 采样电阻0.01Ω 放大倍数50倍 i=u/r
     motor.i240a2.Ia_mes = (ADC_GET_VALUE(0) - 0.5f) / 3.3f / 0.01f / 50;
-    motor.i240a2.Ib_mes = (ADC_GET_VALUE(1) - 0.5f) / 3.3f / 0.01f / 50;
+    motor.i240a2.Ib_mes = -(ADC_GET_VALUE(1) - 0.5f) / 3.3f / 0.01f / 50;
     motor.i240a2.Ic_mes = -(motor.i240a2.Ia_mes + motor.i240a2.Ib_mes);
     // AS5600 analog引脚
     // motor.as5600.theta_mes = ADC_GET_VALUE(2) * M_TWOPI;
