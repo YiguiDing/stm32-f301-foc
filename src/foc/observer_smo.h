@@ -2,7 +2,7 @@
 #define __OBSERVER_SMO_H__
 
 #include <stdint.h>
-#include "foc.h"
+#include "foc_math.h"
 #include "pid.h"
 #include "pll.h"
 

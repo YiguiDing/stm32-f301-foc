@@ -1,4 +1,4 @@
-#include "foc.h"
+#include "foc_math.h"
 #include "stdint.h"
 
 float _normalizeAngle(float a)
@@ -9,10 +9,16 @@ float _normalizeAngle(float a)
     return a;
 }
 
-float _constrain(float min, float value, float max)
+float _phrase_diff(float theta_ref, float theta_mes)
 {
-    return (value < min ? min : (value > max ? max : value));
+    float diff = _normalizeAngle(theta_ref) - _normalizeAngle(theta_mes);
+    if (diff > M_PI)
+        diff -= M_TWOPI;
+    else if (diff < -M_PI)
+        diff += M_TWOPI;
+    return diff; // diff ∈ [-M_PI,+M_PI]
 }
+
 // fast_atan2 based on https://math.stackexchange.com/a/1105038/81278
 // Via Odrive project
 // https://github.com/odriverobotics/ODrive/blob/master/Firmware/MotorControl/utils.cpp

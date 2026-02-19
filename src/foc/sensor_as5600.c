@@ -10,7 +10,7 @@ void sensor_as5600_init(Sensor_as5600 *self)
     self->theta_mes = 0;
     self->theta_mes = 0;
     self->omega_hat = 0;
-    pll_init(&self->pll, 0.000001, 1500, 500, 500);
+    pll_init(&self->pll, 0.000001, 1500, 500);
 }
 
 float sensor_as5600_i2c_read()

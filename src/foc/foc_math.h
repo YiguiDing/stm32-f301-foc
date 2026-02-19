@@ -10,8 +10,13 @@ extern "C"
 #endif
 
     float _normalizeAngle(float a);
-    float _constrain(float min, float value, float max);
+    float _phrase_diff(float theta_ref, float theta_mes);
     float _atan2(float y, float x);
+
+static inline float _constrain(float value, float min, float max)
+{
+    return (value < min ? min : (value > max ? max : value));
+}
 
 #define rad(deg) (deg * 365.0f / M_TWOPI)
 

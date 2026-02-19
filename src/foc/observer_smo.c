@@ -14,7 +14,7 @@ void observer_smo_init(Observer_SMO *self)
     self->omega_hat = 0.0f;
 
     // lpf_init(&self->lpf_omega, 1 / 100.0f);
-    pll_init(&self->pll, 0, 200.0f, 0.0f, 0.0f);
+    pll_init(&self->pll, 0, 200.0f, 500.0f);
 }
 float smo_sat(float x, float delta)
 {
@@ -24,15 +24,7 @@ float smo_sat(float x, float delta)
         return -1;
     return x / delta;
 }
-float smo_phrase_diff(float target, float theta)
-{
-    float diff = _normalizeAngle(target) - _normalizeAngle(theta);
-    if (diff > M_PI)
-        diff -= M_TWOPI;
-    else if (diff < -M_PI)
-        diff += M_TWOPI;
-    return diff; // diff ∈ [-M_PI,+M_PI]
-}
+
 void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
 {
     // 电机参数
@@ -55,7 +47,7 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
 
     // 1 直接计算 噪声过大 能观测角度，但无法闭环
     // float theta_raw = -_atan2(self->Ealpha_hat, self->Ebeta_hat);
-    // float omega_raw = smo_phrase_diff(theta_raw, self->theta_hat) / Ts;
+    // float omega_raw = _phrase_diff(theta_raw, self->theta_hat) / Ts;
     // self->theta_hat = _normalizeAngle(theta_raw);
     // self->omega_hat = lpf_update(&self->lpf_omega, omega_raw, Ts);
 
@@ -64,7 +56,7 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // Ealpha = 0.9 * self->Ealpha_hat + 0.1 * Ealpha;
     // Ebeta = 0.9 * self->Ebeta_hat + 0.1 * Ebeta;
     // float theta_raw = -_atan2(Ealpha, Ebeta);
-    // float omega_raw = smo_phrase_diff(theta_raw, self->theta_hat) / Ts;
+    // float omega_raw = _phrase_diff(theta_raw, self->theta_hat) / Ts;
     // self->theta_hat = _normalizeAngle(theta_raw);
     // self->omega_hat = lpf_update(&self->lpf_omega, omega_raw, Ts);
 
@@ -80,7 +72,7 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // Ealpha = 0.9 * self->Ealpha_hat + 0.1 * Ealpha;
     // Ebeta = 0.9 * self->Ebeta_hat + 0.1 * Ebeta;
     // self->theta_raw = _normalizeAngle(-_atan2(Ealpha, Ebeta));
-    // float diff = smo_phrase_diff(self->theta_raw, self->pll.theta_hat);
+    // float diff = _phrase_diff(self->theta_raw, self->pll.theta_hat);
     // pll_update(&self->pll, diff, Ts);
     // self->theta_hat = self->pll.theta_hat;
     // self->omega_hat = self->pll.omega_hat;

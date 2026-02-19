@@ -5,7 +5,7 @@
 #include <math.h>
 #include "dev.h"
 #include "pll.h"
-#include "foc.h"
+#include "foc_math.h"
 #include "pid.h"
 #include "sensor_i240a2.h"
 #include "sensor_as5600.h"

@@ -1,4 +1,6 @@
 #include "pid.h"
+#include "foc_math.h"
+
 void pid_init(PidController *ctrl, float Kp, float Ki, float Kd, float integral_limit, float output_limit, float output_roc_limit)
 {
     // 初始化参数
@@ -34,10 +36,9 @@ float pid_update(PidController *ctrl, float error, float dt)
     if (ctrl->output_limit != 0.0f)
     {
         // 限制输出幅值
-        if (output > ctrl->output_limit)
-            output = ctrl->output_limit;
-        else if (output < -ctrl->output_limit)
-            output = -ctrl->output_limit;
+        output = _constrain(output, -ctrl->output_limit, ctrl->output_limit);
+        // 限制积分幅度
+        integral = _constrain(integral, -ctrl->output_limit, ctrl->output_limit);
     }
     if (ctrl->integral_limit != 0.0f)
     {
