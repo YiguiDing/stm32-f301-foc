@@ -1,5 +1,6 @@
 #include "motor.h"
 #include "delay.h"
+#include <stdbool.h>
 
 #include "sensor_i240a2.h"
 #include "sensor_as5600.h"
@@ -17,7 +18,11 @@ void motor_init(Motor *self, float R, float L, float KV, uint8_t pole_pairs, flo
     self->power_supply = power_supply;
     // ######################################################################
     self->target = 0;
-    self->observer = AS5600;
+    self->sensorless = true;      // 默认无感模式
+    self->observer = SMO;         // 观测器类型
+    self->sensor = AS5600;        // 传感器类型
+    self->use_vf_startup = true;  // 是否使用VF启动
+    self->divergence_counter = 0; // 角度发散计数器
     self->control = OPEN_LOOP_VOLTAGE_CTRL;
     self->modulation = SVPWM;
     // ######################################################################
@@ -281,16 +286,75 @@ void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt)
  */
 void motor_open_loop_voltage_ctrl(Motor *self, float Ud_target, float Uq_target, float dt)
 {
-    // TODO: 改为判断滑膜观测器位置速度是否收敛到VF强拖位置速度
-    if (Uq_target < 0.20 * self->power_supply)
+    if (!self->sensorless)
     {
-        motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
+        // 有感模式
+        if (self->sensor == AS5600)
+        {
+            // 编码器模式,直接使用传感器反馈
+            motor_set_e_theta_omega(self, self->as5600.theta_hat, self->as5600.omega_hat);
+            motor_set_dq_voltage(self, Ud_target, Uq_target);
+        }
+        // else if (其他传感器类型)
+        // {
+        // }
         return;
     }
-    // TODO: 改为判断是否为无感模式
-    motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
-    // motor_set_e_theta_omega(self, self->as5600.theta_hat, self->as5600.omega_hat);
-    motor_set_dq_voltage(self, Ud_target, Uq_target);
+    else
+    {
+        // 无感模式
+        if (self->use_vf_startup)
+        {
+            // 使用VF启动模式
+            motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
+            // 检查SMO是否收敛到VF理论值
+            float theta_diff = fabsf(_phrase_diff(self->smo.theta_hat, self->e_theta));
+            // float omega_diff = fabsf(self->smo.omega_hat - self->e_omega);
+            float voltage_diff = fabsf(Uq_target) / self->power_supply;
+            // 如果SMO收敛(角度和速度都收敛)且电压足够高，切换到闭环控制
+            if ((theta_diff < rad(10)) && (voltage_diff >= 0.20))
+            {
+                if (self->divergence_counter++ > 50) // 50个控制周期
+                {
+                    self->divergence_counter = 0;
+                    self->use_vf_startup = false; // 切换到闭环控制
+                    return;
+                }
+            }
+            else
+                self->divergence_counter = 0;
+        }
+        else
+        {
+            // 观测器模式,根据观测器类型选择处理方式
+            if (self->observer == SMO)
+            {
+                // 检测角度发散
+                float theta_diff = fabsf(_phrase_diff(self->smo.theta_hat, self->e_theta));
+                float voltage_diff = fabsf(Uq_target) / self->power_supply;
+                if (theta_diff > rad(30) || voltage_diff < 0.05)
+                {
+                    // 持续检测到发散才回退,避免误判
+                    if (self->divergence_counter++ > 50) // 50个控制周期
+                    {
+                        self->divergence_counter = 0;
+                        self->use_vf_startup = true; // 回退到VF启动模式
+                        return;
+                    }
+                }
+                else
+                    self->divergence_counter = 0;
+                // 观测器正常,使用观测器位置
+                motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
+            }
+            else if (self->observer == HFI)
+            {
+                // HFI观测器处理
+                // motor_set_e_theta_omega(self, self->hfi.theta_hat, self->hfi.omega_hat);
+            }
+            motor_set_dq_voltage(self, Ud_target, Uq_target);
+        }
+    }
 }
 /**
  * 闭环电流控制

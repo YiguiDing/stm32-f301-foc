@@ -13,8 +13,8 @@ void observer_smo_init(Observer_SMO *self)
     self->theta_hat = 0.0f;
     self->omega_hat = 0.0f;
 
-    // lpf_init(&self->lpf_omega, 1 / 100.0f);
-    pll_init(&self->pll, 0 / 500.0f, 500.0f, 10.0f);
+    lpf_init(&self->lpf_omega, 1 / 10.0f);
+    pll_init(&self->pll, 0 / 1000.0f, 500.0f, 0.0f);
 }
 
 float smo_sat(float x, float delta)
@@ -60,8 +60,9 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
     float diff = _phrase_diff(self->theta_raw, self->pll.theta_hat);
     pll_update(&self->pll, diff, Ts);
+    // self->theta_hat = _normalizeAngle(self->pll.theta_hat);
     self->theta_hat = _normalizeAngle(self->pll.theta_hat + M_PI_2); // TODO: 解释这里为什么相位偏移90度
-    self->omega_hat = self->pll.omega_hat;
+    self->omega_hat = lpf_update(&self->lpf_omega, self->pll.omega_hat, Ts);
     // 3 滤波计算 + 锁相环 实际测试可以闭环，和上面区别不大
     // static float Ealpha = 0, Ebeta = 0;
     // Ealpha = 0.9 * self->Ealpha_hat + 0.1 * Ealpha;
