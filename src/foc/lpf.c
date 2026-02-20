@@ -1,16 +1,14 @@
 
 #include "lpf.h"
 
-void lpf_init(LowpassFilter *self, float Ts)
+void lpf_init(LowpassFilter *self, float Tf)
 {
-    self->Ts = Ts;
+    self->Tf = Tf;
 }
-float lpf_update(LowpassFilter *self, float x_now, float dt)
+float lpf_update(LowpassFilter *self, float x_now, float Ts)
 {
-    // dt=>Ts k=>(1/2) 均值滤波 x=> [0.5 * x_prev + 0.5 * x_now]
-    // dt=>0 k=>0 维持原值 x=> [1 * x_prev + 0 * x_now]
-    float k = dt / (dt + self->Ts);
-    float x = self->x_prev + k * (x_now - self->x_prev);
+    float alpha = self->Tf / (self->Tf + Ts);
+    float x = alpha * self->x_prev + (1 - alpha) * x_now;
     self->x_prev = x;
     return x;
 }

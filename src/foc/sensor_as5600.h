@@ -19,8 +19,8 @@ extern "C"
     typedef struct
     {
         float theta_mes, theta_offset;
-        float theta_hat, omega_hat;
-        PLL pll;
+        float theta_pre, theta_hat, omega_hat;
+        LowpassFilter lpf_omega;
     } Sensor_as5600;
 
     void sensor_as5600_init(Sensor_as5600 *self);

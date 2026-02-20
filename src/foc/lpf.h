@@ -8,11 +8,11 @@ extern "C"
 
     typedef struct
     {
-        float Ts;
+        float Tf;
         float x_prev;
     } LowpassFilter;
 
-    void lpf_init(LowpassFilter *self, float Ts);
+    void lpf_init(LowpassFilter *self, float Tf);
     float lpf_update(LowpassFilter *self, float x, float dt);
 
 #ifdef __cplusplus

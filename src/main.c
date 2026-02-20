@@ -28,7 +28,7 @@ void adc_update()
 TaskHandle_t TH_i2c = NULL;
 static void i2c_update(void *parameters)
 {
-    float freq = 5e3; // 5khz
+    float freq = 1e3; // 1khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -47,7 +47,7 @@ TaskHandle_t TH_observer = NULL;
 static void observer_update(void *parameters)
 {
     // 1万转/分钟 -> 166转/秒 -> 1.166k电角度转/秒
-    float freq = 5e3; // 5khz
+    float freq = 10e3; // 5khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -61,7 +61,7 @@ static void observer_update(void *parameters)
 TaskHandle_t TH_control = NULL;
 static void control_update(void *parameters)
 {
-    float freq = 10e3; // 10khz
+    float freq = 5e3; // 10khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -87,7 +87,7 @@ TaskHandle_t TH_serial = NULL;
 
 typedef struct
 {
-    float data[21];
+    float data[23];
     uint32_t tail;
 } JustFloatFrame;
 
@@ -125,8 +125,9 @@ static void serial_task(void *parameters)
         // 反电动势
         frame.data[idx++] = motor.smo.Ealpha_hat;
         frame.data[idx++] = motor.smo.Ebeta_hat;
-        // frame.data[idx++] = (motor.as5600.theta_mes);
-        // frame.data[idx++] = (motor.as5600.omega_hat);
+        // AS5600传感器数据
+        frame.data[idx++] = motor.as5600.theta_hat;
+        frame.data[idx++] = motor.as5600.omega_hat;
 
         // frame.data[idx++] = motor.iq_filter.x_prev;
         // frame.data[idx++] = motor.id_filter.x_prev;
@@ -190,17 +191,18 @@ int main(void)
     adc_set_callback(adc_update);
     //
     pwm1_init();
-    pwm1_set_freq(24e3); // 24khz
+    pwm1_set_freq(36e3); // 24khz
     pwm1_set_callback(driver_update);
-    pwm1_start();
+    pwm1_enable();
     //
     i2c_init();
     timer_init();
     serial_init();
 
-    // R=112mΩ L=9uH pp=7 Vsat=12V
-    // motor_init(&motor, 112e-3, 9e-6,2300, 7, 12);
-    motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12);
+    
+    // motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12); // 2208电机 kv=110 pp=7 R=8Ω L=4.25mH Vmax=12V
+    motor_init(&motor, 112e-3, 9e-6, 2300, 7, 12); // 2204电机 kv=2300 pp=7 R=112mΩ L=9uH Vmax=12V Imax=12A Pmax=140w
+    // motor_init(&motor, 100e-3, 42.3e-6, 650, 10, 12); // 3505电机 kv=650 pp=10 R=100mΩ L=42.3uH Vmax=12~16V Imax=17A Pmax=240w
     xTaskCreate(i2c_update, "i2c_update", 100, NULL, 2, &TH_i2c);
     xTaskCreate(control_update, "control_update", 200, NULL, 2, &TH_control);
     xTaskCreate(observer_update, "observer_update", 100, NULL, 3, &TH_observer);

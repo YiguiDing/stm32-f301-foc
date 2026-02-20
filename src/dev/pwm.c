@@ -35,6 +35,16 @@ void pwm1_init()
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_6);  // [AF6(SPI2/I2S2/SPI3/I2S3/TIM1/Infrared),PA9] = TIM1_CH2
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_6); // [AF6(SPI2/I2S2/SPI3/I2S3/TIM1/Infrared),PA10] = TIM1_CH3
 
+    /* 配置GPIO */
+    GPIO_InitTypeDef GPIO_EN = {
+        .GPIO_Pin = GPIO_Pin_11,          // 引脚
+        .GPIO_Mode = GPIO_Mode_OUT,       // 复用
+        .GPIO_Speed = GPIO_Speed_Level_3, // 高速
+        .GPIO_OType = GPIO_OType_PP,      // 推挽
+        .GPIO_PuPd = GPIO_PuPd_NOPULL,    // 下拉
+    };
+    GPIO_Init(GPIOA, &GPIO_EN);
+
     // 配置NVIC
     // NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); // 配置NVIC优先级 TODO: 优先级分组配置不应当写在此处
     NVIC_InitTypeDef NVIC_InitStruct = {
@@ -99,7 +109,8 @@ void pwm1_init()
 
     TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update); // for adc triger,事件映射: 更新事件 => TRGO事件
 
-    TIM_Cmd(TIM1, DISABLE); // 关闭定时器
+    TIM_Cmd(TIM1, DISABLE);             // 关闭定时器
+    GPIO_ResetBits(GPIOA, GPIO_Pin_11); // EN = 0
 }
 
 /**
@@ -137,12 +148,14 @@ void pwm1_set_duty(float dutyA, float dutyB, float dutyC)
     TIM_SetCompare3(TIM1, dutyC * 1000);
 }
 
-void pwm1_start()
+void pwm1_enable()
 {
+    GPIO_SetBits(GPIOA, GPIO_Pin_11); // EN = 1
     TIM_Cmd(TIM1, ENABLE);
 }
-void pwm1_stop()
+void pwm1_disable()
 {
+    GPIO_ResetBits(GPIOA, GPIO_Pin_11); // EN = 0
     TIM_Cmd(TIM1, DISABLE);
 }
 

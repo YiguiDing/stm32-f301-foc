@@ -23,18 +23,18 @@ void motor_init(Motor *self, float R, float L, float KV, uint8_t pole_pairs, flo
     // ######################################################################
     motor_set_theta_omega(self, 0, 0);
     // ######################################################################
-    lpf_init(&self->id_filter, 0.0001f);
-    lpf_init(&self->iq_filter, 0.0001f);
-    lpf_init(&self->velocity_filter, 0.01f);
+    lpf_init(&self->id_filter, 1 / 100.0f);
+    lpf_init(&self->iq_filter, 1 / 100.0f);
+    lpf_init(&self->velocity_filter, 1 / 10.0f);
     lpf_init(&self->position_filter, 0.001f);
     // ######################################################################
     self->limit_voltage = 12;
     self->limit_current = 10;
     self->limit_velocity = 500;
     // ######################################################################
-    pid_init(&self->pid_id_controller, 2, 0.5, 0, 0, self->limit_voltage, 0.0f);
-    pid_init(&self->pid_iq_controller, 2, 0.5, 0, 0, self->limit_voltage, 0.0f);
-    pid_init(&self->pid_velocity_controller, 0.1, 0.05, 0, 0, self->limit_current, 0.0f);
+    pid_init(&self->pid_id_controller, 1, 0.01, 0, 0, self->limit_voltage, 0.0f);
+    pid_init(&self->pid_iq_controller, 1, 0.01, 0, 0, self->limit_voltage, 0.0f);
+    pid_init(&self->pid_velocity_controller, 0.01, 0.1, 0, 0, self->limit_current, 0.0f);
     pid_init(&self->pid_position_controller, 5, 2.5, 0, 0, self->limit_velocity, 0.0f);
     // ######################################################################
     sensor_i240a2_init(&self->i240a2);
@@ -194,8 +194,8 @@ void motor_sensor_update(Motor *self, float dt)
 {
     sensor_i240a2_update(&self->i240a2);
     motor_set_abc_current(self, self->i240a2.Ia_hat, self->i240a2.Ib_hat, self->i240a2.Ic_hat);
-    // sensor_as5600_update(&self->as5600, self, dt);
-    // motor_set_theta_omega(self, self->as5600.theta_mes, self->as5600.omega_hat);
+    sensor_as5600_update(&self->as5600, self, dt);
+    // motor_set_e_theta_omega(self, self->as5600.theta_mes, self->as5600.omega_hat);
 }
 void motor_observer_update(Motor *self, float dt)
 {
@@ -281,19 +281,13 @@ void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt)
  */
 void motor_open_loop_voltage_ctrl(Motor *self, float Ud_target, float Uq_target, float dt)
 {
-    static uint8_t vf_start = 0;
-
-    if (Uq_target < 0.3 * self->power_supply)
-        vf_start = 1;
-    if (Uq_target > 0.3 * self->power_supply)
-        vf_start = 0;
-
-    if (vf_start == 1)
-    {
-        motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
-        return;
-    }
-    motor_set_e_theta_omega(self, self->smo.theta_hat + M_PI_2, self->smo.omega_hat);
+    // if (Uq_target < 0.20 * self->power_supply)
+    // {
+    //     motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
+    //     return;
+    // }
+    // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
+    motor_set_e_theta_omega(self, self->as5600.theta_hat, self->as5600.omega_hat);
     motor_set_dq_voltage(self, Ud_target, Uq_target);
 }
 /**
@@ -301,20 +295,20 @@ void motor_open_loop_voltage_ctrl(Motor *self, float Ud_target, float Uq_target,
  */
 void motor_close_loop_current_ctrl(Motor *self, float Id_target, float Iq_target, float dt)
 {
-    float Id_error = Id_target - lpf_update(&self->id_filter, self->Id, dt); // 计算d轴电流误差
     float Iq_error = Iq_target - lpf_update(&self->iq_filter, self->Iq, dt); // 计算q轴电流误差
-    float Ud_target = pid_update(&self->pid_id_controller, Id_error, dt);    // 更新d轴电流环pid控制器
     float Uq_target = pid_update(&self->pid_iq_controller, Iq_error, dt);    // 更新q轴电流环pid控制器
-    motor_open_loop_voltage_ctrl(self, Ud_target, Uq_target, dt);            // 电流开环控制
+    // float Id_error = Id_target - lpf_update(&self->id_filter, self->Id, dt); // 计算d轴电流误差
+    // float Ud_target = pid_update(&self->pid_id_controller, Id_error, dt);    // 更新d轴电流环pid控制器
+    motor_open_loop_voltage_ctrl(self, 0, Uq_target, dt); // 电流开环控制
 }
 /**
  * 闭环速度控制
  */
 void motor_close_loop_velocity_ctrl(Motor *self, float velocity_target, float dt)
 {
-    float velocity_error = velocity_target - lpf_update(&self->velocity_filter, self->omega, dt); // 计算速度误差
-    float Iq_target = pid_update(&self->pid_velocity_controller, velocity_error, dt);             // 更新速度环pid控制器
-    motor_close_loop_current_ctrl(self, 0, Iq_target, dt);                                        // 电流开环控制
+    float velocity_error = velocity_target - lpf_update(&self->velocity_filter, self->e_omega, dt); // 计算速度误差
+    float Iq_target = pid_update(&self->pid_velocity_controller, velocity_error, dt);               // 更新速度环pid控制器
+    motor_close_loop_current_ctrl(self, 0, Iq_target, dt);                                          // 电流开环控制
 }
 /**
  * 闭环位置控制

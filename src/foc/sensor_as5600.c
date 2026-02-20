@@ -10,7 +10,7 @@ void sensor_as5600_init(Sensor_as5600 *self)
     self->theta_mes = 0;
     self->theta_mes = 0;
     self->omega_hat = 0;
-    pll_init(&self->pll, 0.000001, 1500, 500);
+    lpf_init(&self->lpf_omega, 1 / 100.0f);
 }
 
 float sensor_as5600_i2c_read()
@@ -24,8 +24,8 @@ float sensor_as5600_i2c_read()
 
 void sensor_as5600_align(Sensor_as5600 *self, Motor *motor)
 {
-    motor_set_e_theta_omega(motor, 0, 0);
-    motor_set_dq_voltage(motor, 0.2 * motor->power_supply, 0);
+    motor_set_e_theta_omega(motor, -M_PI_2, 0);
+    motor_set_dq_voltage(motor, 0, 0.2 * motor->power_supply);
     dev_delay(50);
     float avg = 0;
     for (uint8_t n = 1; n <= 100; n++)
@@ -36,14 +36,12 @@ void sensor_as5600_align(Sensor_as5600 *self, Motor *motor)
         dev_delay(10);
     }
     self->theta_offset = -avg;
+    motor_set_e_theta_omega(motor, 0, 0);
     motor_set_dq_voltage(motor, 0, 0);
-    dev_delay(50);
 }
 void sensor_as5600_update(Sensor_as5600 *self, Motor *motor, float dt)
 {
-    // 测量角度
-    self->theta_hat = _normalizeAngle(self->theta_mes + self->theta_offset);
-    // 锁相环更新
-    self->theta_hat = pll_update(&self->pll, self->theta_hat - self->pll.theta_hat, dt);
-    self->theta_mes = self->pll.omega_hat;
+    self->theta_hat = _normalizeAngle((self->theta_mes + self->theta_offset) * motor->pole_pairs);
+    self->omega_hat = lpf_update(&self->lpf_omega, _phrase_diff(self->theta_hat, self->theta_pre) / dt, dt);
+    self->theta_pre = self->theta_hat;
 }
