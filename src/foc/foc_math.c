@@ -100,6 +100,28 @@ float _cos(float a)
 // _cos -> arm_cos_f32
 #endif
 
+/**
+ * 检测是否连续n次满足条件
+ * @param counter 计数器指针
+ * @param condition 当前是否满足条件
+ * @param n 连续满足的次数阈值
+ * @return true 如果连续满足n次, false 否则
+ */
+bool check_continuous_condition(uint16_t *counter, bool condition, uint16_t n)
+{
+    if (condition)
+    {
+        if ((*counter)++ >= n)
+        {
+            *counter = 0;
+            return true;
+        }
+        return false;
+    }
+    *counter = 0;
+    return false;
+}
+
 #include "dev.h"
 void foc_math_test()
 {

@@ -3,6 +3,7 @@
 
 #include "math.h"
 #include "arm_math.h"
+#include "stdbool.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -12,11 +13,12 @@ extern "C"
     float _normalizeAngle(float a);
     float _phrase_diff(float theta_ref, float theta_mes);
     float _atan2(float y, float x);
+    bool check_continuous_condition(uint16_t *counter, bool condition, uint16_t n);
 
-static inline float _constrain(float value, float min, float max)
-{
-    return (value < min ? min : (value > max ? max : value));
-}
+    static inline float _constrain(float value, float min, float max)
+    {
+        return (value < min ? min : (value > max ? max : value));
+    }
 
 #define rad(deg) (deg * 365.0f / M_TWOPI)
 

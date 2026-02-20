@@ -63,7 +63,8 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // self->theta_hat = _normalizeAngle(self->pll.theta_hat);
     self->theta_hat = _normalizeAngle(self->pll.theta_hat + M_PI_2); // TODO: 解释这里为什么相位偏移90度
     self->omega_hat = lpf_update(&self->lpf_omega, self->pll.omega_hat, Ts);
-    // 3 滤波计算 + 锁相环 实际测试可以闭环，和上面区别不大
+
+    // 4 滤波计算 + 锁相环 实际测试可以闭环，和上面区别不大
     // static float Ealpha = 0, Ebeta = 0;
     // Ealpha = 0.9 * self->Ealpha_hat + 0.1 * Ealpha;
     // Ebeta = 0.9 * self->Ebeta_hat + 0.1 * Ebeta;
@@ -73,7 +74,7 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // self->theta_hat = self->pll.theta_hat;
     // self->omega_hat = self->pll.omega_hat;
 
-    // 4 利用d轴反电动势应为0作为锁相环的鉴相器 实际测试可以闭环，但是需要再算一次sin和cos,另外依然存在锁相环角度和实际角度相差90°的问题。
+    // 5 利用d轴反电动势应为0作为锁相环的鉴相器 实际测试可以闭环，但是需要再算一次sin和cos,另外依然存在锁相环角度和实际角度相差90°的问题。
     // self->theta_raw = _normalizeAngle(-_atan2(self->Ealpha_hat, self->Ebeta_hat));
     // float cos_e_theta = _cos(self->pll.theta_hat);
     // float sin_e_theta = _sin(self->pll.theta_hat);
@@ -84,4 +85,34 @@ void observer_smo_update(Observer_SMO *self, Motor *motor, float Ts)
     // pll_update(&self->pll, 10 * Ed_err, Ts);
     // self->theta_hat = self->pll.theta_hat;
     // self->omega_hat = self->pll.omega_hat;
+}
+
+/**
+ * 检查观测器是否连续50次收敛到VF理论值
+ * 角度误差 < 10° 且电压比率 >= 0.20
+ * @param self 观测器对象
+ * @param motor 电机对象
+ * @return true 连续50次收敛, false 否则
+ */
+bool observer_smo_check_stabilized(Observer_SMO *self, Motor *motor)
+{
+    float theta_diff = fabsf(_phrase_diff(self->theta_hat, motor->e_theta));
+    float voltage_ratio = fabsf(motor->Uq) / motor->power_supply;
+    bool cond = (theta_diff < rad(10)) && (voltage_ratio >= 0.20f);
+    return check_continuous_condition(&self->stabilized_cnt, cond, 50);
+}
+
+/**
+ * 检查观测器是否连续50次发散
+ * 角度误差 > 30° 或电压比率 < 0.05
+ * @param self 观测器对象
+ * @param motor 电机对象
+ * @return true 连续50次发散, false 否则
+ */
+bool observer_smo_check_unstabilized(Observer_SMO *self, Motor *motor)
+{
+    float theta_diff = fabsf(_phrase_diff(self->theta_hat, motor->e_theta));
+    float voltage_ratio = fabsf(motor->Uq) / motor->power_supply;
+    bool cond = (theta_diff > rad(30)) || (voltage_ratio < 0.05f);
+    return check_continuous_condition(&self->stabilized_cnt, cond, 50);
 }

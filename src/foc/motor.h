@@ -63,15 +63,14 @@ extern "C"
         uint8_t pole_pairs;
         float power_supply;
         // ########################################
-        float target;                // 目标值
-        MotorState state;            // 电机状态
-        bool sensorless;             // 是否无感模式
-        ObservorType observer;       // 观测器类型(SMO/HFI)
-        SensorType sensor;           // 传感器类型(AS5600)
-        bool use_vf_startup;         // 是否使用VF启动
-        uint16_t divergence_counter; // 角度发散计数器
-        ControlType control;         // 控制模式
-        ModulationType modulation;   // 调制模式
+        float target;              // 目标值
+        MotorState state;          // 电机状态
+        bool sensorless;           // 是否无感模式
+        ObservorType observer;     // 观测器类型(SMO/HFI)
+        SensorType sensor;         // 传感器类型(AS5600)
+        bool use_vf_startup;       // 是否使用VF启动
+        ControlType control;       // 控制模式
+        ModulationType modulation; // 调制模式
         // ########################################
         float Id, Iq;
         float Ialpha, Ibeta;
