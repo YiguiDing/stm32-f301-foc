@@ -281,13 +281,15 @@ void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt)
  */
 void motor_open_loop_voltage_ctrl(Motor *self, float Ud_target, float Uq_target, float dt)
 {
-    // if (Uq_target < 0.20 * self->power_supply)
-    // {
-    //     motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
-    //     return;
-    // }
-    // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
-    motor_set_e_theta_omega(self, self->as5600.theta_hat, self->as5600.omega_hat);
+    // TODO: 改为判断滑膜观测器位置速度是否收敛到VF强拖位置速度
+    if (Uq_target < 0.20 * self->power_supply)
+    {
+        motor_open_loop_voltage_freq_ctrl(self, Uq_target, dt);
+        return;
+    }
+    // TODO: 改为判断是否为无感模式
+    motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
+    // motor_set_e_theta_omega(self, self->as5600.theta_hat, self->as5600.omega_hat);
     motor_set_dq_voltage(self, Ud_target, Uq_target);
 }
 /**

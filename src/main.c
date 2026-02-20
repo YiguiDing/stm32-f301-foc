@@ -47,7 +47,7 @@ TaskHandle_t TH_observer = NULL;
 static void observer_update(void *parameters)
 {
     // 1万转/分钟 -> 166转/秒 -> 1.166k电角度转/秒
-    float freq = 10e3; // 5khz
+    float freq = 20e3; // 5khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
