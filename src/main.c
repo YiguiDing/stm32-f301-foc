@@ -18,8 +18,8 @@ void adc_update()
 
     // I240A2 电流采样
     // [0,1] -> [-0.5,0.5] /3.3 -> U_r -> 采样电阻0.01Ω 放大倍数50倍 i=u/r
-    motor.i240a2.Ia_mes = (ADC_GET_VALUE(0) - 0.5f) / 3.3f / 0.01f / 50;
-    motor.i240a2.Ib_mes = -(ADC_GET_VALUE(1) - 0.5f) / 3.3f / 0.01f / 50;
+    motor.i240a2.Ia_mes = (dev_get_adc_value(0) - 0.5f) / 3.3f / 0.01f / 50;
+    motor.i240a2.Ib_mes = -(dev_get_adc_value(1) - 0.5f) / 3.3f / 0.01f / 50;
     motor.i240a2.Ic_mes = -(motor.i240a2.Ia_mes + motor.i240a2.Ib_mes);
     // AS5600 analog引脚
     // motor.as5600.theta_mes = ADC_GET_VALUE(2) * M_TWOPI;
@@ -38,9 +38,9 @@ static void i2c_update(void *parameters)
     }
 }
 
-void driver_update(float Ts)
+void pwm1_update(float Ts)
 {
-    pwm1_set_duty(motor.Ta, motor.Tb, motor.Tc);
+    dev_set_pwm1_duty(motor.Ta, motor.Tb, motor.Tc);
 }
 
 TaskHandle_t TH_observer = NULL;
@@ -191,8 +191,8 @@ int main(void)
     adc_set_callback(adc_update);
     //
     pwm1_init();
-    pwm1_set_freq(36e3); // 24khz
-    pwm1_set_callback(driver_update);
+    pwm1_set_freq(36e3); // 24khz 36khz
+    pwm1_set_callback(pwm1_update);
     pwm1_enable();
     //
     i2c_init();

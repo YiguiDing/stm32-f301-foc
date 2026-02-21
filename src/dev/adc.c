@@ -136,6 +136,7 @@ void ADC1_2_IRQHandler()
     // }
 }
 
+#ifndef adc_get_value
 /**
  * @return [0,1] 表示 [0,3.3v]
  */
@@ -143,6 +144,8 @@ float adc_get_value(uint8_t ch)
 {
     return adc_value[ch] / (float)0xfff; // 读取转换结果
 }
+#endif
+
 void adc_set_callback(void (*on_update)())
 {
     adc_on_update = on_update;
