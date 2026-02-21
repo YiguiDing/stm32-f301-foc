@@ -213,14 +213,32 @@ void motor_observer_update(Motor *self, float dt)
 {
     if (self->observer == SMO)
         observer_smo_update(&self->smo, self, dt);
-        // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
     else if (self->observer == HFI)
-        observer_hfi_update(&self->hfi, self, dt);
+        observer_hfi_update(&self->hfi, dt);
 }
-/**
- * 设置dq轴电压
- * 中频任务
- */
+
+void motor_on_adc_update(Motor *self)
+{
+    sensor_i240a2_update(&self->i240a2);
+    motor_set_abc_current(self, self->i240a2.Ia_hat, self->i240a2.Ib_hat, self->i240a2.Ic_hat);
+    if (self->observer == HFI)
+    {
+        observer_hfi_on_adc_update(&self->hfi, self->Ialpha, self->Ibeta);
+    }
+}
+
+void motor_on_pwm_update(Motor *self)
+{
+    if (self->observer == HFI)
+    {
+        observer_hfi_on_pwm_update(&self->hfi, self->power_supply);
+        motor_set_dq_voltage(self, self->Ud + self->hfi.Ud_injeck, self->Uq);
+    }
+    else
+    {
+        motor_set_dq_voltage(self, self->Ud, self->Uq);
+    }
+}
 void motor_control_update(Motor *self, float dt)
 {
     if (self->state != Running)
@@ -263,13 +281,9 @@ void motor_control_update(Motor *self, float dt)
         break;
     }
 }
-/**
- * pwm驱动更新
- * 高频任务
- */
 void motor_driver_update(Motor *self)
 {
-    dev_set_pwm_duty(self->Ta, self->Tb, self->Tc);
+    dev_set_pwm1_duty(self->Ta, self->Tb, self->Tc);
 }
 
 void motor_foc_loop(Motor *self, float dt)
@@ -341,7 +355,7 @@ void motor_open_loop_voltage_ctrl(Motor *self, float Ud_target, float Uq_target,
             else if (self->observer == HFI)
             {
                 // HFI观测器处理
-                // motor_set_e_theta_omega(self, self->hfi.theta_hat, self->hfi.omega_hat);
+                motor_set_e_theta_omega(self, self->hfi.theta_hat, self->hfi.omega_hat);
             }
             motor_set_dq_voltage(self, Ud_target, Uq_target);
         }

@@ -129,6 +129,9 @@ extern "C"
     void motor_driver_update(Motor *motor);
     void motor_foc_loop(Motor *motor, float dt);
     // ######################################################################
+    void motor_on_adc_update(Motor *motor); // ADC中断调用：处理电流采样和HFI高频响应计算
+    void motor_on_pwm_update(Motor *motor); // PWM中断调用：处理HFI注入电压计算、坐标变换、调制
+    // ######################################################################
     void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt);
     void motor_open_loop_voltage_ctrl(Motor *motor, float Ud_target, float Uq_target, float dt);
     void motor_close_loop_current_ctrl(Motor *motor, float Id_target, float Iq_target, float dt);

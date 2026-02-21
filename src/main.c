@@ -186,14 +186,13 @@ int main(void)
     adc_set_callback(adc_update);
     //
     pwm1_init();
-    pwm1_set_freq(36e3); // 24khz 36khz
+    pwm1_set_freq(36e3); // 24khz 36khz 72khz
     pwm1_set_callback(pwm1_update);
     pwm1_enable();
     //
     i2c_init();
     timer_init();
     serial_init();
-
 
     // motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12); // 2208电机 kv=110 pp=7 R=8Ω L=4.25mH Vmax=12V
     motor_init(&motor, 112e-3, 9e-6, 2300, 7, 12); // 2204电机 kv=2300 pp=7 R=112mΩ L=9uH Vmax=12V Imax=12A Pmax=140w
