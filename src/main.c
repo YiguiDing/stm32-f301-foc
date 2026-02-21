@@ -47,7 +47,7 @@ TaskHandle_t TH_observer = NULL;
 static void observer_update(void *parameters)
 {
     // 1万转/分钟 -> 166.66转/秒 ->  * 极对数10 => 1666转/秒(电角度)
-    float freq = 20e3; // 5khz
+    float freq = 20e3; // 20khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -87,7 +87,7 @@ TaskHandle_t TH_serial = NULL;
 
 typedef struct
 {
-    float data[23];
+    float data[29];
     uint32_t tail;
 } JustFloatFrame;
 
@@ -118,6 +118,10 @@ static void serial_task(void *parameters)
         // 速度和位置
         frame.data[idx++] = motor.e_theta;
         frame.data[idx++] = motor.e_omega;
+        // AS5600传感器数据
+        frame.data[idx++] = motor.as5600.theta_hat;
+        frame.data[idx++] = motor.as5600.omega_hat;
+        // SMO
         // 速度和位置
         frame.data[idx++] = motor.smo.theta_raw; // 原始角度
         frame.data[idx++] = motor.smo.theta_hat;
@@ -125,23 +129,14 @@ static void serial_task(void *parameters)
         // 反电动势
         frame.data[idx++] = motor.smo.Ealpha_hat;
         frame.data[idx++] = motor.smo.Ebeta_hat;
-        // AS5600传感器数据
-        frame.data[idx++] = motor.as5600.theta_hat;
-        frame.data[idx++] = motor.as5600.omega_hat;
-
-        // frame.data[idx++] = motor.iq_filter.x_prev;
-        // frame.data[idx++] = motor.id_filter.x_prev;
-        // frame.data[idx++] = motor.velocity_filter.x_prev;
-        // frame.data[idx++] = motor.position_filter.x_prev;
-
-        // frame.data[5] = motor.Ia;
-        // frame.data[6] = motor.Ib;
-        // frame.data[7] = motor.Ic;
-
-        // frame.data[8] = motor.hfi.i_alpha_avg_0;
-        // frame.data[9] = motor.hfi.i_alpha_avg_0;
-        // frame.data[10] = motor.hfi.i_alpha_avg_1;
-        // frame.data[11] = motor.hfi.i_alpha_avg_1;
+        // HFI
+        // 速度和位置
+        frame.data[idx++] = motor.hfi.theta_raw; // 原始角度
+        frame.data[idx++] = motor.hfi.theta_hat;
+        frame.data[idx++] = motor.hfi.omega_hat;
+        // 高频电流
+        frame.data[idx++] = motor.hfi.Ialpha_h;
+        frame.data[idx++] = motor.hfi.Ibeta_h;
 
         frame.tail = 0x7f800000;
         serial_send((uint8_t *)&frame, sizeof(JustFloatFrame));
@@ -199,7 +194,7 @@ int main(void)
     timer_init();
     serial_init();
 
-    
+
     // motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12); // 2208电机 kv=110 pp=7 R=8Ω L=4.25mH Vmax=12V
     motor_init(&motor, 112e-3, 9e-6, 2300, 7, 12); // 2204电机 kv=2300 pp=7 R=112mΩ L=9uH Vmax=12V Imax=12A Pmax=140w
     // motor_init(&motor, 100e-3, 42.3e-6, 650, 10, 12); // 3505电机 kv=650 pp=10 R=100mΩ L=42.3uH Vmax=12~16V Imax=17A Pmax=240w

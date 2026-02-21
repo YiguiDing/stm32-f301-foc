@@ -93,9 +93,18 @@ void motor_set_abc_current(Motor *self, float Ia, float Ib, float Ic)
 /**
  * 设置dq轴电压
  * - 为防止重复计算三角函数 需要先调用 motor_set_e_theta
+ * - 对应 motor_set_abc_current 的功能，将dq电压转换为abc电压和占空比
  */
 void motor_set_dq_voltage(Motor *self, float Ud, float Uq)
 {
+    float theta = self->e_theta;
+    if (Ud != 0)
+    {
+        // 合成新的矢量
+        theta = _normalizeAngle(theta - _atan2(Ud, Uq));
+        Uq = _sqrt(Ud * Ud + Uq * Uq);
+        Ud = 0;
+    }
     self->Ud = Ud + self->hfi.Ud_injeck;
     self->Uq = Uq;
 
@@ -130,21 +139,11 @@ void motor_set_dq_voltage(Motor *self, float Ud, float Uq)
     {
 #define M_PI_3 1.0471975511965979 // 60° = PI/3
 
-        float Udq = self->Uq;
-        float theta = self->e_theta;
-        if (self->Ud != 0)
-        {
-            // 合成新的矢量
-            Udq = _sqrt(self->Ud * self->Ud + self->Uq * self->Uq);
-            theta = _normalizeAngle(theta - _atan2(self->Ud, self->Uq));
-        }
         int sector = theta / M_PI_3;
         float alpha = theta - sector * M_PI_3;
 
-        float Umax = Udq / self->power_supply;
-
-        float T1 = Umax * _sin(M_PI_3 - alpha);
-        float T2 = Umax * _sin(alpha);
+        float T1 = Uq / self->power_supply * _sin(M_PI_3 - alpha);
+        float T2 = Uq / self->power_supply * _sin(alpha);
         float T0 = 1 - T1 - T2;
 
         float Ta, Tb, Tc;
