@@ -47,6 +47,7 @@ void motor_init(Motor *self, float R, float L, float KV, uint8_t pole_pairs, flo
     sensor_as5600_align(&self->as5600, self);
     // ######################################################################
     observer_smo_init(&self->smo);
+    observer_hfi_init(&self->hfi);
     // ######################################################################
     motor_set_state(self, Running);
     // ######################################################################
@@ -95,7 +96,7 @@ void motor_set_abc_current(Motor *self, float Ia, float Ib, float Ic)
  */
 void motor_set_dq_voltage(Motor *self, float Ud, float Uq)
 {
-    self->Ud = Ud;
+    self->Ud = Ud + self->hfi.Ud_injeck;
     self->Uq = Uq;
 
     // 帕克逆变换
@@ -129,13 +130,21 @@ void motor_set_dq_voltage(Motor *self, float Ud, float Uq)
     {
 #define M_PI_3 1.0471975511965979 // 60° = PI/3
 
-        int sector = self->e_theta / M_PI_3;
-        float alpha = self->e_theta - sector * M_PI_3;
+        float Udq = self->Uq;
+        float theta = self->e_theta;
+        if (self->Ud != 0)
+        {
+            // 合成新的矢量
+            Udq = _sqrt(self->Ud * self->Ud + self->Uq * self->Uq);
+            theta = _normalizeAngle(theta - _atan2(self->Ud, self->Uq));
+        }
+        int sector = theta / M_PI_3;
+        float alpha = theta - sector * M_PI_3;
 
-        float H = self->Uq / self->power_supply;
+        float Umax = Udq / self->power_supply;
 
-        float T1 = H * _sin(M_PI_3 - alpha);
-        float T2 = H * _sin(alpha);
+        float T1 = Umax * _sin(M_PI_3 - alpha);
+        float T2 = Umax * _sin(alpha);
         float T0 = 1 - T1 - T2;
 
         float Ta, Tb, Tc;
@@ -203,8 +212,11 @@ void motor_sensor_update(Motor *self, float dt)
 }
 void motor_observer_update(Motor *self, float dt)
 {
-    observer_smo_update(&self->smo, self, dt);
-    // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
+    if (self->observer == SMO)
+        observer_smo_update(&self->smo, self, dt);
+        // motor_set_e_theta_omega(self, self->smo.theta_hat, self->smo.omega_hat);
+    else if (self->observer == HFI)
+        observer_hfi_update(&self->hfi, self, dt);
 }
 /**
  * 设置dq轴电压

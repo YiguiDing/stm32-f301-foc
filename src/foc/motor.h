@@ -11,6 +11,7 @@
 #include "sensor_i240a2.h"
 #include "sensor_as5600.h"
 #include "observer_smo.h"
+#include "observer_hfi.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -110,6 +111,7 @@ extern "C"
         Sensor_as5600 as5600;
         // ########################################
         Observer_SMO smo;
+        Observer_HFI hfi;
         // ########################################
     } Motor;
     // ######################################################################

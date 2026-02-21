@@ -46,7 +46,7 @@ void driver_update(float Ts)
 TaskHandle_t TH_observer = NULL;
 static void observer_update(void *parameters)
 {
-    // 1万转/分钟 -> 166转/秒 -> 1.166k电角度转/秒
+    // 1万转/分钟 -> 166.66转/秒 ->  * 极对数10 => 1666转/秒(电角度)
     float freq = 20e3; // 5khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
@@ -61,7 +61,7 @@ static void observer_update(void *parameters)
 TaskHandle_t TH_control = NULL;
 static void control_update(void *parameters)
 {
-    float freq = 5e3; // 10khz
+    float freq = 5e3; // 5khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)

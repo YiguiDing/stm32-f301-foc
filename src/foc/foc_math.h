@@ -13,6 +13,7 @@ extern "C"
     float _normalizeAngle(float a);
     float _phrase_diff(float theta_ref, float theta_mes);
     float _atan2(float y, float x);
+    float _sqrtApprox(float number);
     bool check_continuous_condition(uint16_t *counter, bool condition, uint16_t n);
 
     static inline float _constrain(float value, float min, float max)
@@ -28,6 +29,7 @@ extern "C"
 #else
 #define _sin(a) arm_sin_f32(a)
 #define _cos(a) arm_cos_f32(a)
+#define _sqrt(a) _sqrtApprox(a)
 #endif
     void foc_math_test();
 

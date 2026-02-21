@@ -41,6 +41,18 @@ float _atan2(float y, float x)
     return r;
 }
 
+// square root approximation function using
+// https://reprap.org/forum/read.php?147,219210
+// https://en.wikipedia.org/wiki/Fast_inverse_square_root
+__attribute__((weak)) float _sqrtApprox(float number) {//low in fat
+  union {
+    float    f;
+    uint32_t i;
+  } y = { .f = number };
+  y.i = 0x5f375a86 - ( y.i >> 1 );
+  return number * y.f;
+}
+
 #ifndef _ARM_MATH_H
 /**
  * @param a float [0,2PI]
