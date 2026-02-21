@@ -17,12 +17,18 @@ extern "C"
         int8_t sign;
         float Ud_injeck;
         float Ialpha_prev, Ibeta_prev;
-        float theta_mes, theta_hat, omega_hat;
+        float Ialpha_h, Ibeta_h; // 高频电流响应
+        float theta_raw, theta_hat, omega_hat;
         float X[3];
         PLL pll;
     } Observer_HFI;
     void observer_hfi_init(Observer_HFI *observer);
-    void observer_hfi_update(Observer_HFI *self, Motor *motor, float dt);
+    // PWM中断调用：计算注入电压(翻转符号)
+    void observer_hfi_on_pwm_update(Observer_HFI *self, float power_supply);
+    // ADC中断调用：计算高频电流响应
+    void observer_hfi_on_adc_update(Observer_HFI *self, float Ialpha, float Ibeta);
+    // Observer任务调用：根据高频电流计算角度
+    void observer_hfi_update(Observer_HFI *self, float dt);
 #ifdef __cplusplus
 }
 #endif
