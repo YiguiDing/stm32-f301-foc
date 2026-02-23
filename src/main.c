@@ -28,7 +28,7 @@ void adc_update()
 TaskHandle_t TH_i2c = NULL;
 static void i2c_update(void *parameters)
 {
-    float freq = 1e3; // 1khz
+    float freq = 0.5e3; // 1khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -40,14 +40,13 @@ static void i2c_update(void *parameters)
 
 void pwm1_update(float Ts)
 {
-    dev_set_pwm1_duty(motor.Ta, motor.Tb, motor.Tc);
 }
 
 TaskHandle_t TH_observer = NULL;
 static void observer_update(void *parameters)
 {
     // 1万转/分钟 -> 166.66转/秒 ->  * 极对数10 => 1666转/秒(电角度)
-    float freq = 20e3; // 20khz
+    float freq = 10e3; // 10khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -61,12 +60,13 @@ static void observer_update(void *parameters)
 TaskHandle_t TH_control = NULL;
 static void control_update(void *parameters)
 {
-    float freq = 5e3; // 5khz
+    float freq = 10e3; // 10khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
     {
         motor_control_update(&motor, Ts);
+        dev_set_pwm1_duty(motor.Ta, motor.Tb, motor.Tc);
         vTaskDelay(ticks);
     }
 }
@@ -93,7 +93,7 @@ typedef struct
 
 static void serial_task(void *parameters)
 {
-    float freq = 1e3; // 1khz
+    float freq = 0.5e3; // 1khz
     float ticks = configTICK_RATE_HZ / freq;
     JustFloatFrame frame;
     for (;;)
@@ -187,7 +187,6 @@ int main(void)
     //
     pwm1_init();
     pwm1_set_freq(36e3); // 24khz 36khz 72khz
-    pwm1_set_callback(pwm1_update);
     pwm1_enable();
     //
     i2c_init();

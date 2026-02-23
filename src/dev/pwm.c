@@ -103,7 +103,7 @@ void pwm1_init()
     TIM_OC3Init(TIM1, &TIM_OCInitStruct); // 初始化通道3
 
     TIM_ClearFlag(TIM1, TIM_FLAG_Update);      // 上面的时基单元初始化函数最后生成了更新事件，这里清除更新事件否则中断函数会立即执行
-    TIM_ITConfig(TIM1, TIM_IT_Update, ENABLE); // 启用更新中断
+    // TIM_ITConfig(TIM1, TIM_IT_Update, ENABLE); // 启用更新中断 TIM1_UP_TIM16_IRQHandler
 
     TIM_CtrlPWMOutputs(TIM1, ENABLE); // TIM1作为高级定时器，需通过TIM_CtrlPWMOutputs()函数使能主输出（MOE），否则所有通道输出将被禁止。
 
@@ -137,6 +137,7 @@ void pwm1_set_callback(void (*on_update)(float Ts))
     pwm1_on_update = on_update;
 }
 
+#ifndef pwm1_set_duty
 /**
  * 设置占空比
  * @param duty [0.0f,1.0f]
@@ -147,6 +148,7 @@ void pwm1_set_duty(float dutyA, float dutyB, float dutyC)
     TIM_SetCompare2(TIM1, dutyB * 1000);
     TIM_SetCompare3(TIM1, dutyC * 1000);
 }
+#endif
 
 void pwm1_enable()
 {
