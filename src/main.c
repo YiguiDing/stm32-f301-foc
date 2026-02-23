@@ -25,10 +25,10 @@ void adc_update()
     // motor.as5600.theta_mes = ADC_GET_VALUE(2) * M_TWOPI;
 }
 
-TaskHandle_t TH_i2c = NULL;
+TaskHandle_t th_i2c = NULL;
 static void i2c_update(void *parameters)
 {
-    float freq = 0.5e3; // 1khz
+    float freq = 20e3; // 1khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -38,15 +38,11 @@ static void i2c_update(void *parameters)
     }
 }
 
-void pwm1_update(float Ts)
-{
-}
-
-TaskHandle_t TH_observer = NULL;
+TaskHandle_t th_observer = NULL;
 static void observer_update(void *parameters)
 {
     // 1万转/分钟 -> 166.66转/秒 ->  * 极对数10 => 1666转/秒(电角度)
-    float freq = 10e3; // 10khz
+    float freq = 20e3; // 10khz
     float Ts = 1 / freq;
     float ticks = configTICK_RATE_HZ / freq;
     for (;;)
@@ -57,7 +53,7 @@ static void observer_update(void *parameters)
     }
 }
 
-TaskHandle_t TH_control = NULL;
+TaskHandle_t th_control = NULL;
 static void control_update(void *parameters)
 {
     float freq = 10e3; // 10khz
@@ -70,7 +66,7 @@ static void control_update(void *parameters)
         vTaskDelay(ticks);
     }
 }
-TaskHandle_t TH_swo = NULL;
+TaskHandle_t th_swo = NULL;
 static void swo_task(void *parameters)
 {
     float freq = 0.5e3; // 1khz
@@ -83,7 +79,7 @@ static void swo_task(void *parameters)
     }
 }
 
-TaskHandle_t TH_serial = NULL;
+TaskHandle_t th_serial = NULL;
 
 typedef struct
 {
@@ -196,11 +192,11 @@ int main(void)
     // motor_init(&motor, 8.25, 4.25e-3, 110, 7, 12); // 2208电机 kv=110 pp=7 R=8Ω L=4.25mH Vmax=12V
     motor_init(&motor, 112e-3, 9e-6, 2300, 7, 12); // 2204电机 kv=2300 pp=7 R=112mΩ L=9uH Vmax=12V Imax=12A Pmax=140w
     // motor_init(&motor, 100e-3, 42.3e-6, 650, 10, 12); // 3505电机 kv=650 pp=10 R=100mΩ L=42.3uH Vmax=12~16V Imax=17A Pmax=240w
-    xTaskCreate(i2c_update, "i2c_update", 100, NULL, 2, &TH_i2c);
-    xTaskCreate(control_update, "control_update", 200, NULL, 2, &TH_control);
-    xTaskCreate(observer_update, "observer_update", 100, NULL, 3, &TH_observer);
-    xTaskCreate(serial_task, "serial_task", 100, NULL, 4, &TH_serial);
-    // xTaskCreate(swo_task, "swo_task", 500, NULL, 4, &TH_swo);
+    xTaskCreate(i2c_update, "i2c_update", 100, NULL, 2, &th_i2c);
+    xTaskCreate(control_update, "control_update", 200, NULL, 2, &th_control);
+    xTaskCreate(observer_update, "observer_update", 100, NULL, 3, &th_observer);
+    xTaskCreate(serial_task, "serial_task", 100, NULL, 4, &th_serial);
+    // xTaskCreate(swo_task, "swo_task", 500, NULL, 4, &th_swo);
     motor_set_target(&motor, 0);
 
     vTaskStartScheduler();

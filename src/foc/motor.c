@@ -14,7 +14,7 @@ void motor_init(Motor *self, float R, float L, float KV, uint8_t pole_pairs, flo
     self->L = L;
     self->KV = KV; // rpm/v
     self->pole_pairs = pole_pairs;
-    self->KVerps = KV / 60 * pole_pairs; // erps/v
+    self->KVerps = KV * pole_pairs / 60; // erps/v
     self->power_supply = power_supply;
     // ######################################################################
     self->target = 0;
@@ -296,14 +296,24 @@ void motor_foc_loop(Motor *self, float dt)
 /**
  * 开环电压频率控制(VF启动)
  */
-void motor_open_loop_voltage_freq_ctrl(Motor *self, float vf_target, float dt)
+void motor_open_loop_voltage_freq_ctrl(Motor *self, float Uq_target, float dt)
 {
-    float accFactor = vf_target <= 1.0f ? vf_target : expf((vf_target - 1.0f)); // 加速因子
-    float voltage = fminf(accFactor, self->power_supply);                       // 电压限幅
-    float e_omega = voltage * self->KVerps;                                     // 电角速度 = V * 电机KV值(单位: e_omega/s)
+    // 根据KV值计算目标电角速度
+    // KV单位是 rpm/v, KVerps = KV * pole_pairs / 60 (erps/v)
+    float target_e_omega = Uq_target * self->KVerps * M_TWOPI; // rad/s
+
+    // 加速度限制
+    float e_acc_max = 10000.0f; // rad/s²
+    float e_acc = (target_e_omega - self->e_omega) / dt;
+    e_acc = _constrain(e_acc, -e_acc_max, e_acc_max);
+
+    // 更新角速度和角度
+    float e_omega = self->e_omega + e_acc * dt;
     float e_theta = self->e_theta + e_omega * dt;
+
+    // 更新电机角度速度电压
     motor_set_e_theta_omega(self, e_theta, e_omega);
-    motor_set_dq_voltage(self, 0, voltage);
+    motor_set_dq_voltage(self, 0, Uq_target);
 }
 /**
  * 开环电压控制
